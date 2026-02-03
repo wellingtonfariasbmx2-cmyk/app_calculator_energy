@@ -19,7 +19,7 @@ export default function App() {
 function MainLayout() {
   const [currentView, setCurrentView] = useState<ViewState>('equipments');
 
-  // Navigation Items
+  // Navigations Items
   const navItems = [
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
     { id: 'calculator', label: 'Calc. Rápido', icon: Calculator },
