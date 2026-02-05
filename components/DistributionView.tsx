@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient'; // Make sure supabase is imported
 import { FolderKanban, Plus, Save, Trash2, Zap, Settings, X, AlertTriangle, ShieldCheck, Flame, LayoutGrid, Edit2, Wrench, RotateCcw, Search, Download } from 'lucide-react';
 import { Equipment, Port, DistributionProject } from '../types';
 import { DataService } from '../services/supabaseClient';
@@ -21,7 +22,7 @@ const PORT_COLORS = [
    { label: 'Roxo', value: '#a855f7', bg: 'bg-purple-500' },
 ];
 
-export const DistributionView: React.FC = () => {
+export const DistributionView: React.FC<{ initialProject?: DistributionProject | null; onClearEdit?: () => void }> = ({ initialProject, onClearEdit }) => {
    const [equipments, setEquipments] = useState<Equipment[]>([]);
    const [voltage, setVoltage] = useState(220);
    const [ports, setPorts] = useState<Port[]>([]);
@@ -51,6 +52,59 @@ export const DistributionView: React.FC = () => {
    useEffect(() => {
       DataService.getEquipments().then(setEquipments);
    }, []);
+
+   // Load Initial Project (Edit Mode)
+   useEffect(() => {
+      if (initialProject) {
+         setPorts(initialProject.ports);
+         setVoltage(initialProject.voltageSystem);
+         setProjectName(initialProject.name);
+         setSaveDesc(initialProject.description || '');
+         setTechResponsible(initialProject.technicalResponsible || '');
+         success(`Editando projeto: ${initialProject.name}`);
+
+         // --- REALTIME SUBSCRIPTION ---
+         if (!supabase) return;
+
+         const channel = supabase
+            .channel(`distribution_project_${initialProject.id}`)
+            .on(
+               'postgres_changes',
+               {
+                  event: 'UPDATE',
+                  schema: 'public',
+                  table: 'calculations', // All projects are in 'calculations' table
+                  filter: `id=eq.${initialProject.id}`
+               },
+               (payload) => {
+                  console.log('🔔 Realtime Update received:', payload);
+                  const newProject = payload.new as any;
+
+                  // Optional: Check if we are the ones who triggered this update (to avoid overwrite/jump)
+                  // For now, simpler: Just notify or auto-update.
+                  // Auto-update to show multiplayer magic:
+
+                  if (newProject.ports) {
+                     setPorts(newProject.ports);
+                     setVoltage(Number(newProject.voltage_system));
+                     setProjectName(newProject.name);
+                     setSaveDesc(newProject.description || '');
+                     setTechResponsible(newProject.technical_responsible || '');
+                     info('Projeto atualizado por outro usuário!');
+                  }
+               }
+            )
+            .subscribe((status) => {
+               if (status === 'SUBSCRIBED') {
+                  console.log(`✅ Listening for updates on project ${initialProject.id}`);
+               }
+            });
+
+         return () => {
+            supabase.removeChannel(channel);
+         };
+      }
+   }, [initialProject]);
 
    // --- LOGIC ---
 
@@ -285,7 +339,7 @@ export const DistributionView: React.FC = () => {
       }
 
       const project: DistributionProject = {
-         id: '',
+         id: initialProject ? initialProject.id : '', // Keep ID if editing
          type: 'distribution',
          name: projectName,
          description: saveDesc,
@@ -308,6 +362,9 @@ export const DistributionView: React.FC = () => {
          console.error(e);
          error("Erro ao salvar projeto.");
       }
+
+      // Clear edit mode after save
+      if (onClearEdit) onClearEdit();
    };
 
    // Filter for modal

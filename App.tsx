@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban } from 'lucide-react';
+import { Zap, Calculator, FileText, FolderKanban, LogOut } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { DataService, syncPendingChanges } from './services/supabaseClient'; // Import sync
 import { CalculatorView } from './components/CalculatorView';
@@ -8,6 +8,8 @@ import { DistributionView } from './components/DistributionView';
 import { ReportsView } from './components/ReportsView';
 import { ViewState } from './types';
 import { ToastProvider, useToast } from './components/Toast';
+import { LoginView } from './components/LoginView';
+import { supabase } from './services/supabaseClient';
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
     </ToastProvider>
   );
 }
+
+import { DistributionProject } from './types'; // Ensure imported logic
 
 function StatusIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -78,8 +82,31 @@ function StatusIndicator() {
 }
 
 function MainLayout() {
+  const [session, setSession] = useState<any>(null);
   const [currentView, setCurrentView] = useState<ViewState>('equipments');
+  const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
   const { success, info } = useToast();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    success('Você saiu com sucesso.');
+  };
+
+  React.useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   React.useEffect(() => {
     // Tenta sincronizar ao abrir
@@ -108,6 +135,11 @@ function MainLayout() {
     };
   }, []);
 
+  // Render Login if no session
+  if (!session) {
+    return <LoginView onLoginSuccess={() => success('Login realizado com sucesso!')} />;
+  }
+
   // Navigations Items
   const navItems = [
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
@@ -123,9 +155,25 @@ function MainLayout() {
       case 'calculator':
         return <div className="animate-fade-in"><CalculatorView /></div>;
       case 'distribution':
-        return <div className="animate-fade-in"><DistributionView /></div>;
+        return (
+          <div className="animate-fade-in">
+            <DistributionView
+              initialProject={editingProject}
+              onClearEdit={() => setEditingProject(null)}
+            />
+          </div>
+        );
       case 'reports':
-        return <div className="animate-fade-in"><ReportsView /></div>;
+        return (
+          <div className="animate-fade-in">
+            <ReportsView
+              onEditDistribution={(project) => {
+                setEditingProject(project);
+                setCurrentView('distribution');
+              }}
+            />
+          </div>
+        );
       default:
         return <EquipmentsView />;
     }
@@ -145,7 +193,14 @@ function MainLayout() {
               </div>
               <div className="leading-tight">
                 <h1 className="text-white font-bold text-lg tracking-tight group-hover:text-blue-400 transition-colors">LightLoad Pro</h1>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Planejamento de Carga</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors">
+                    {session.user.email?.split('@')[0]}
+                  </p>
+                  <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors" title="Sair">
+                    <LogOut className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
 

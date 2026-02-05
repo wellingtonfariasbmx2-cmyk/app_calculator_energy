@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Download, Trash2, Eye, Calendar, Zap, FolderKanban, X, LayoutGrid, Copy, AlertTriangle, ShieldCheck, Flame } from 'lucide-react';
+import { FileText, Download, Trash2, Eye, Calendar, Zap, FolderKanban, X, LayoutGrid, Copy, AlertTriangle, ShieldCheck, Flame, Edit2 } from 'lucide-react';
 import { AnyReport, DistributionProject, Port } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { jsPDF } from 'jspdf';
@@ -8,7 +8,7 @@ import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
 import { isCompatible } from '../services/utils';
 
-export const ReportsView: React.FC = () => {
+export const ReportsView: React.FC<{ onEditDistribution?: (project: DistributionProject) => void }> = ({ onEditDistribution }) => {
    const [reports, setReports] = useState<AnyReport[]>([]);
    const [viewingReport, setViewingReport] = useState<AnyReport | null>(null);
 
@@ -619,6 +619,15 @@ export const ReportsView: React.FC = () => {
                         >
                            <Eye className="w-4 h-4" />
                         </button>
+                        {report.type === 'distribution' && (
+                           <button
+                              onClick={() => onEditDistribution && onEditDistribution(report as DistributionProject)}
+                              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-yellow-400 rounded-lg transition-colors border border-slate-700 hover:border-slate-600"
+                              title="Editar Projeto"
+                           >
+                              <Edit2 className="w-4 h-4" />
+                           </button>
+                        )}
                         <button
                            onClick={() => handleDownloadPDF(report)}
                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm py-2 rounded-lg transition-colors border border-slate-700 hover:border-slate-600 flex items-center justify-center gap-2 font-medium"
