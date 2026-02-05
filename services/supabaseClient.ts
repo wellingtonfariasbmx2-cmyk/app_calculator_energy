@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { Equipment, Calculation, DistributionProject, AnyReport } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
-// NEXT_PUBLIC_ prefix makes these available in the browser
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY || '';
+// VITE_ prefix makes these available in the browser
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || '';
 
 const isConfigured = SUPABASE_URL.length > 0 && SUPABASE_KEY.length > 0;
 

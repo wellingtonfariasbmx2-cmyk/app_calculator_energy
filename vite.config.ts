@@ -10,12 +10,6 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
     plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL),
-      'process.env.NEXT_PUBLIC_SUPABASE_KEY': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_KEY)
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
