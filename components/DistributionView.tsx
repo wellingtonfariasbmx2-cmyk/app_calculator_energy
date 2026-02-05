@@ -134,50 +134,7 @@ export const DistributionView: React.FC = () => {
       success(`${bulkData.quantity} circuitos gerados!`);
    };
 
-   // AUTO-BALANCE ALGORITHM
-   const handleAutoBalance = () => {
-      if (ports.length < 2) return;
 
-      if (!confirm("Isso redistribuirá AUTOMATICAMENTE todas as cargas entre os circuitos existentes para equilibrar a potência. Deseja continuar?")) return;
-
-      // 1. Coletar todos os itens (desnormalizar quantidade)
-      let allItems: { equipmentId: string; equipment: Equipment; quantity: number }[] = [];
-      ports.forEach(p => {
-         p.items.forEach(i => {
-            // Tratamos cada unidade como um item individual para melhor balanceamento, 
-            // ou mantemos o grupo? Manter grupo por tipo é melhor para organização,
-            // mas separar permite balanceamento fino. 
-            // Vamos manter os grupos originais (item do array) mas separar se qtd > 1?
-            // Simplificação: Manter grupos como objetos móveis indivisíveis seria ruim se tiver 100x Lampada.
-            // Melhor: Separar em grupos menores ou unidades?
-            // Vamos manter a estrutura de itens (Equipment + Qty) como unidade atômica de movimento 
-            // POR ENQUANTO, para não explodir a lista. Mas idealmente deveríamos quebrar.
-            // Vamos tentar balancear movendo os itens existentes.
-            allItems.push({ ...i });
-         });
-      });
-
-      // 2. Ordenar itens por potência TOTAL (descendente) - Greedy
-      allItems.sort((a, b) => (b.equipment.watts * b.quantity) - (a.equipment.watts * a.quantity));
-
-      // 3. Criar cópia dos ports limpos
-      const newPorts = ports.map(p => ({ ...p, items: [] as typeof p.items, currentWatts: 0 }));
-
-      // 4. Distribuir (Greedy partition)
-      allItems.forEach(item => {
-         // Encontrar porto com menor carga atual
-         // Sort ports by current load
-         newPorts.sort((a, b) => a.currentWatts - b.currentWatts);
-
-         // Adicionar ao primeiro (menor carga)
-         newPorts[0].items.push(item);
-         newPorts[0].currentWatts += (item.equipment.watts * item.quantity);
-      });
-
-      // 5. Atualizar estado (removendo a prop temporária currentWatts)
-      setPorts(newPorts.map(({ currentWatts, ...p }) => ({ ...p })));
-      success("Cargas balanceadas com sucesso!");
-   };
 
    const removePort = (id: string, e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
@@ -417,13 +374,6 @@ export const DistributionView: React.FC = () => {
 
                {ports.length > 0 && (
                   <div className="flex gap-2">
-                     <button
-                        onClick={handleAutoBalance}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-emerald-500/10 border border-slate-700 hover:border-emerald-500/30 rounded-lg text-xs text-slate-400 hover:text-emerald-400 transition-all active:scale-95 h-9"
-                        title="Redistribuir cargas automaticamente"
-                     >
-                        <RotateCcw className="w-3.5 h-3.5" /> Balancear
-                     </button>
                      <button
                         onClick={resetAllPorts}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/30 rounded-lg text-xs text-slate-400 hover:text-red-400 transition-all active:scale-95 h-9"

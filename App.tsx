@@ -27,17 +27,25 @@ function MainLayout() {
       if (count > 0) success(`${count} itens sincronizados!`);
     });
 
-    // Tenta sincronizar quando a internet volta
     const handleOnline = () => {
       console.log('🌐 Online! Syncing...');
       syncPendingChanges().then(count => {
         if (count > 0) success(`Conexão restaurada! ${count} itens enviados.`);
-        else info('Conexão restaurada!');
+        else info('Conexão restaurada! Sincronizado.');
       });
     };
 
+    const handleOffline = () => {
+      info('Você está offline. Agora usando modo offline. 📡');
+    };
+
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Navigations Items
