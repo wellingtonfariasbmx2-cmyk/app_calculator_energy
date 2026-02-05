@@ -13,7 +13,67 @@ export default function App() {
   return (
     <ToastProvider>
       <MainLayout />
+      <StatusIndicator />
     </ToastProvider>
+  );
+}
+
+function StatusIndicator() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isDbConnected, setIsDbConnected] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  React.useEffect(() => {
+    // Network Listeners
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    // Sync Listener (Custom Event or Polling - Simplified here via interval check if needed, 
+    // but better to expose state. For now, we will simulate sync state via window event or simple check)
+    // To make it real, we could expose a global state or simple event bus.
+    // For simplicity, let's assume sync is fast. We will check DB connection periodically.
+
+    const checkDb = async () => {
+      if (!navigator.onLine) {
+        setIsDbConnected(false);
+        return;
+      }
+      const ok = await DataService.checkConnection();
+      setIsDbConnected(ok);
+    };
+
+    const interval = setInterval(checkDb, 30000); // Check every 30s
+    checkDb(); // Initial check
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+  }, []);
+
+  if (!isOnline) {
+    return (
+      <div className="fixed top-0 left-0 w-full bg-orange-500 text-white text-[10px] font-bold text-center py-0.5 z-[60]">
+        OFFLINE - MODO LOCAL
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-1 items-end pointer-events-none">
+      {/* DB Status */}
+      <div className={`
+          flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-md border shadow-lg transition-all
+          ${isDbConnected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}
+       `}>
+        <div className={`w-1.5 h-1.5 rounded-full ${isDbConnected ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}></div>
+        {isDbConnected ? 'DB CONECTADO' : 'ERRO NO BANCO'}
+      </div>
+    </div>
   );
 }
 

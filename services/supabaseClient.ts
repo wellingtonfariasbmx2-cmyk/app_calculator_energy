@@ -337,5 +337,15 @@ export const DataService = {
     };
 
     await DataService.saveReport(clonedReport);
+  },
+
+  checkConnection: async (): Promise<boolean> => {
+    if (!isConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('equipments').select('count', { count: 'exact', head: true });
+      return !error;
+    } catch {
+      return false;
+    }
   }
 };
