@@ -99,6 +99,71 @@ const reportFromDb = (dbReport: any): AnyReport => {
   }
 };
 
+// --- OFFLINE SYNC LOGIC ---
+
+interface SyncAction {
+  id: string;
+  type: 'EQUIPMENT' | 'CALCULATION' | 'DISTRIBUTION';
+  action: 'SAVE' | 'DELETE';
+  payload: any; // ID (string) or Object
+  timestamp: number;
+}
+
+const getSyncQueue = (): SyncAction[] => {
+  try {
+    const queue = localStorage.getItem('ll_sync_queue');
+    return queue ? JSON.parse(queue) : [];
+  } catch { return []; }
+};
+
+const addToSyncQueue = (action: Omit<SyncAction, 'id' | 'timestamp'>) => {
+  const queue = getSyncQueue();
+  const newAction: SyncAction = {
+    ...action,
+    id: generateId(),
+    timestamp: Date.now()
+  };
+  queue.push(newAction);
+  localStorage.setItem('ll_sync_queue', JSON.stringify(queue));
+  console.log('📌 Action queued for sync:', newAction);
+};
+
+export const syncPendingChanges = async (): Promise<number> => {
+  if (!isConfigured || !supabase) return 0;
+
+  const queue = getSyncQueue();
+  if (queue.length === 0) return 0;
+
+  console.log(`🔄 Syncing ${queue.length} pending changes...`);
+  const remainingQueue: SyncAction[] = [];
+  let syncedCount = 0;
+
+  for (const item of queue) {
+    try {
+      if (item.type === 'EQUIPMENT') {
+        if (item.action === 'SAVE') {
+          const dbItem = equipmentToDb(item.payload);
+          const { error } = await supabase.from('equipments').upsert(dbItem);
+          if (error) throw error;
+        } else if (item.action === 'DELETE') {
+          const { error } = await supabase.from('equipments').delete().eq('id', item.payload);
+          if (error) throw error;
+        }
+      }
+      // Add other types logic here if needed (Calculations/Distributions)
+
+      syncedCount++;
+    } catch (err) {
+      console.error('❌ Sync failed for item:', item, err);
+      remainingQueue.push(item); // Keep in queue to retry later
+    }
+  }
+
+  localStorage.setItem('ll_sync_queue', JSON.stringify(remainingQueue));
+  console.log(`✅ Sync complete. ${syncedCount} synced, ${remainingQueue.length} remaining.`);
+  return syncedCount;
+};
+
 // --- DATA MOCK INICIAL ---
 const INITIAL_EQUIPMENTS: Equipment[] = [];
 
@@ -108,7 +173,9 @@ export const DataService = {
     if (isConfigured && supabase) {
       const { data, error } = await supabase.from('equipments').select('*');
       if (!error && data) {
-        return data.map(equipmentFromDb);
+        const items = data.map(equipmentFromDb);
+        localStorage.setItem('ll_equipments', JSON.stringify(items)); // Cache local
+        return items;
       }
     }
 
@@ -148,19 +215,16 @@ export const DataService = {
       try {
         console.log('  Attempting Supabase insert...');
         const dbItem = equipmentToDb(newItem);
-        const { data, error } = await supabase.from('equipments').upsert(dbItem);
+        const { error } = await supabase.from('equipments').upsert(dbItem);
 
-        if (error) {
-          console.error('❌ Supabase Error:', error);
-          console.error('  Error message:', error.message);
-        } else {
-          console.log('✅ Supabase save successful!', data);
-        }
+        if (error) throw error;
       } catch (err) {
-        console.error('❌ Exception during Supabase save:', err);
+        console.error('❌ Offline or Error: Queueing for sync', err);
+        addToSyncQueue({ type: 'EQUIPMENT', action: 'SAVE', payload: newItem });
       }
     } else {
-      console.warn('⚠️ Supabase not configured, saving only to localStorage');
+      console.warn('⚠️ Supabase not configured, saving to local & queue');
+      addToSyncQueue({ type: 'EQUIPMENT', action: 'SAVE', payload: newItem });
     }
 
     const current = await DataService.getEquipments();
@@ -179,7 +243,15 @@ export const DataService = {
     if (!id) return;
 
     if (isConfigured && supabase) {
-      await supabase.from('equipments').delete().eq('id', id);
+      try {
+        const { error } = await supabase.from('equipments').delete().eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.error('❌ Offline or Error: Queueing delete', err);
+        addToSyncQueue({ type: 'EQUIPMENT', action: 'DELETE', payload: id });
+      }
+    } else {
+      addToSyncQueue({ type: 'EQUIPMENT', action: 'DELETE', payload: id });
     }
 
     const current = await DataService.getEquipments();
@@ -192,7 +264,11 @@ export const DataService = {
   getReports: async (): Promise<AnyReport[]> => {
     if (isConfigured && supabase) {
       const { data } = await supabase.from('calculations').select('*');
-      if (data) return data.map(reportFromDb);
+      if (data) {
+        const reports = data.map(reportFromDb);
+        localStorage.setItem('ll_calculations', JSON.stringify(reports)); // Cache local
+        return reports;
+      }
     }
     try {
       const stored = localStorage.getItem('ll_calculations');

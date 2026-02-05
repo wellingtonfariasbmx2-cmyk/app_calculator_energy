@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { Zap, Calculator, FileText, FolderKanban } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
+import { DataService, syncPendingChanges } from './services/supabaseClient'; // Import sync
 import { CalculatorView } from './components/CalculatorView';
 import { DistributionView } from './components/DistributionView';
 import { ReportsView } from './components/ReportsView';
 import { ViewState } from './types';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider, useToast } from './components/Toast';
 
 export default function App() {
   return (
@@ -18,6 +19,26 @@ export default function App() {
 
 function MainLayout() {
   const [currentView, setCurrentView] = useState<ViewState>('equipments');
+  const { success, info } = useToast();
+
+  React.useEffect(() => {
+    // Tenta sincronizar ao abrir
+    syncPendingChanges().then(count => {
+      if (count > 0) success(`${count} itens sincronizados!`);
+    });
+
+    // Tenta sincronizar quando a internet volta
+    const handleOnline = () => {
+      console.log('🌐 Online! Syncing...');
+      syncPendingChanges().then(count => {
+        if (count > 0) success(`Conexão restaurada! ${count} itens enviados.`);
+        else info('Conexão restaurada!');
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   // Navigations Items
   const navItems = [
