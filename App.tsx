@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban, LogOut } from 'lucide-react';
+import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
+import { EventsView } from './components/EventsView';
+import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
 import { DataService, syncPendingChanges } from './services/supabaseClient'; // Import sync
 import { CalculatorView } from './components/CalculatorView';
 import { DistributionView } from './components/DistributionView';
@@ -142,6 +144,8 @@ function MainLayout() {
 
   // Navigations Items
   const navItems = [
+    { id: 'events', label: 'Eventos', icon: Calendar },
+    { id: 'availability', label: 'Disponibilidade', icon: TrendingUp },
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
     { id: 'calculator', label: 'Calc. Rápido', icon: Calculator },
     { id: 'distribution', label: 'Distribuição', icon: FolderKanban },
@@ -150,6 +154,34 @@ function MainLayout() {
 
   const renderView = () => {
     switch (currentView) {
+      case 'events':
+        return (
+          <div className="animate-fade-in">
+            <EventsView
+              onNavigateToDistribution={async (projectId) => {
+                // Carregar o projeto do banco de dados
+                try {
+                  const allProjects = await DataService.getReports();
+                  const project = allProjects.find(p => p.id === projectId);
+
+                  if (project && project.type === 'distribution') {
+                    setEditingProject(project as DistributionProject);
+                    setCurrentView('distribution');
+                    info(`Abrindo projeto: ${project.name}`);
+                  } else {
+                    // Se não encontrou o projeto, apenas navega para criar novo
+                    setCurrentView('distribution');
+                  }
+                } catch (err) {
+                  console.error('Error loading project:', err);
+                  setCurrentView('distribution');
+                }
+              }}
+            />
+          </div>
+        );
+      case 'availability':
+        return <div className="animate-fade-in"><EquipmentAvailabilityPanel /></div>;
       case 'equipments':
         return <div className="animate-fade-in"><EquipmentsView /></div>;
       case 'calculator':

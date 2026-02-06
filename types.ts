@@ -10,6 +10,10 @@ export interface Equipment {
   powerFactor: number; // 0.0 to 1.0
   quantityOwned: number;
   status: 'active' | 'maintenance' | 'inactive';
+
+  // Campos calculados em runtime para gestão de estoque
+  quantityAvailable?: number; // Calculado: owned - allocated
+  quantityAllocated?: number; // Em uso em eventos
 }
 
 export interface CalculationItem {
@@ -21,10 +25,10 @@ export interface CalculationItem {
 export interface Calculation {
   id: string;
   type: 'simple'; // Legacy single list
-  name: string; 
+  name: string;
   description?: string;
   technicalResponsible?: string; // Novo campo
-  voltageSystem: number; 
+  voltageSystem: number;
   items: CalculationItem[];
   totalWatts: number;
   totalAmperes: number;
@@ -48,13 +52,48 @@ export interface DistributionProject {
   name: string;
   description?: string;
   technicalResponsible?: string; // Novo campo
-  voltageSystem: number; 
+  voltageSystem: number;
   ports: Port[];
   totalWatts: number;
   totalAmperes: number;
   createdAt: string;
+
+  // NOVO: Vinculação com eventos
+  eventId?: string; // ID do evento ao qual este projeto está vinculado
 }
 
-export type AnyReport = Calculation | DistributionProject;
+// --- NOVOS TIPOS PARA EVENTOS ---
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports';
+export interface Event {
+  id: string;
+  name: string;
+  clientName?: string; // Nome do cliente (simplificado)
+  venue: string; // Local do evento
+  address?: string;
+  startDate: string; // ISO 8601
+  endDate: string; // ISO 8601
+  setupTime?: string; // Horário de montagem
+  eventTime?: string; // Horário do evento
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  equipmentAllocations?: EquipmentAllocation[];
+  distributionProjects?: DistributionProject[]; // Projetos vinculados (carregados via join)
+  notes?: string;
+  technicalResponsible?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentAllocation {
+  id: string;
+  eventId: string;
+  equipmentId: string;
+  equipment?: Equipment; // Carregado via join
+  quantityAllocated: number;
+  status: 'allocated' | 'returned';
+  allocatedAt: string;
+  returnedAt?: string;
+}
+
+export type AnyReport = Calculation | DistributionProject | Event;
+
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability';

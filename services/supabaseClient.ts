@@ -313,6 +313,47 @@ export const DataService = {
     return all.filter(r => r.type === 'simple' || !r.type) as Calculation[];
   },
 
+  getDistributionProjects: async (): Promise<any[]> => {
+    const all = await DataService.getReports();
+    return all.filter(r => r.type === 'distribution');
+  },
+
+  updateCalculation: async (id: string, updates: Partial<any>): Promise<void> => {
+    if (isConfigured && supabase) {
+      const { error } = await supabase
+        .from('calculations')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating calculation:', error);
+        throw error;
+      }
+
+      // Update local cache
+      const stored = localStorage.getItem('ll_calculations');
+      if (stored) {
+        const calculations = JSON.parse(stored);
+        const index = calculations.findIndex((c: AnyReport) => c.id === id);
+        if (index >= 0) {
+          calculations[index] = { ...calculations[index], ...updates };
+          localStorage.setItem('ll_calculations', JSON.stringify(calculations));
+        }
+      }
+    } else {
+      // Fallback to localStorage
+      const stored = localStorage.getItem('ll_calculations');
+      if (stored) {
+        const calculations = JSON.parse(stored);
+        const index = calculations.findIndex((c: AnyReport) => c.id === id);
+        if (index >= 0) {
+          calculations[index] = { ...calculations[index], ...updates };
+          localStorage.setItem('ll_calculations', JSON.stringify(calculations));
+        }
+      }
+    }
+  },
+
   deleteCalculation: async (id: string): Promise<void> => {
     if (!id) return;
 
