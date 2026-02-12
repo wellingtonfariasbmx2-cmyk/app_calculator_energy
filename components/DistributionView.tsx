@@ -1,11 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient'; // Make sure supabase is imported
 import { FolderKanban, Plus, Save, Trash2, Zap, Settings, X, AlertTriangle, ShieldCheck, Flame, LayoutGrid, Edit2, Wrench, RotateCcw, Search, Download } from 'lucide-react';
-import { Equipment, Port, DistributionProject } from '../types';
+import { Equipment, Port, DistributionProject, GeneratorConfig, MainpowerConfig } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
 import { isCompatible } from '../services/utils';
+import { useConfirm } from './ConfirmModal';
+import { QuantityInput } from './QuantityInput';
+import { MoveOrCopyModal } from './MoveOrCopyModal';
+import { PowerConfigPanel } from './PowerConfigPanel';
+import { balancePhases, updatePhaseLoads } from '../services/phaseBalancing';
+
+const STORAGE_KEY = 'lightload_distribution_state';
 
 const PORT_COLORS = [
    { label: 'Cinza', value: '#334155', bg: 'bg-slate-700' },
@@ -27,6 +34,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
    const [voltage, setVoltage] = useState(220);
    const [ports, setPorts] = useState<Port[]>([]);
    const [projectName, setProjectName] = useState('');
+   const isFirstRender = React.useRef(true);
 
    // Modal de Adicionar Item
    const [activePortId, setActivePortId] = useState<string | null>(null);
@@ -47,7 +55,36 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
    const [saveDesc, setSaveDesc] = useState('');
    const [techResponsible, setTechResponsible] = useState('');
 
+   // Modal Mover/Copiar state
+   const [moveOrCopyModal, setMoveOrCopyModal] = useState<{
+      isOpen: boolean;
+      sourcePortIndex: number;
+      targetPortIndex: number;
+      itemIndex: number;
+   } | null>(null);
+
+   // Sistema de Balanceamento de Fases
+   const [generatorConfig, setGeneratorConfig] = useState<GeneratorConfig>({
+      enabled: false,
+      powerKVA: 50,
+      isThreePhase: true,
+      voltage: 220
+   });
+
+   const [mainpowerConfig, setMainpowerConfig] = useState<MainpowerConfig>({
+      enabled: false,
+      systemType: 'three-phase',
+      totalPorts: 12,
+      phases: [
+         { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [] },
+         { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
+         { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
+      ],
+      autoBalance: false
+   });
+
    const { success, error, info } = useToast();
+   const { confirm, ConfirmModalComponent } = useConfirm();
 
    useEffect(() => {
       DataService.getEquipments().then(setEquipments);
@@ -61,20 +98,22 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
          setProjectName(initialProject.name);
          setSaveDesc(initialProject.description || '');
          setTechResponsible(initialProject.technicalResponsible || '');
-         success(`Editando projeto: ${initialProject.name}`);
+         if (initialProject.generatorConfig) setGeneratorConfig(initialProject.generatorConfig);
+         if (initialProject.mainpowerConfig) setMainpowerConfig(initialProject.mainpowerConfig);
+         success(`Editando projeto: ${initialProject.name} `);
 
          // --- REALTIME SUBSCRIPTION ---
          if (!supabase) return;
 
          const channel = supabase
-            .channel(`distribution_project_${initialProject.id}`)
+            .channel(`distribution_project_${initialProject.id} `)
             .on(
                'postgres_changes',
                {
                   event: 'UPDATE',
                   schema: 'public',
                   table: 'calculations', // All projects are in 'calculations' table
-                  filter: `id=eq.${initialProject.id}`
+                  filter: `id = eq.${initialProject.id} `
                },
                (payload) => {
                   console.log('🔔 Realtime Update received:', payload);
@@ -96,7 +135,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
             )
             .subscribe((status) => {
                if (status === 'SUBSCRIBED') {
-                  console.log(`✅ Listening for updates on project ${initialProject.id}`);
+                  console.log(`✅ Listening for updates on project ${initialProject.id} `);
                }
             });
 
@@ -105,6 +144,52 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
          };
       }
    }, [initialProject]);
+
+   // Load state from localStorage on mount (only if NOT editing)
+   useEffect(() => {
+      if (initialProject) return; // Don't load if editing existing project
+
+      try {
+         const saved = localStorage.getItem(STORAGE_KEY);
+         console.log('🔍 [Distribution] Carregando do localStorage:', saved);
+         if (saved) {
+            const state = JSON.parse(saved);
+            console.log('✅ [Distribution] Estado carregado:', state);
+            setPorts(state.ports || []);
+            setVoltage(state.voltage || 220);
+            setProjectName(state.projectName || '');
+            if (state.generatorConfig) setGeneratorConfig(state.generatorConfig);
+            if (state.mainpowerConfig) setMainpowerConfig(state.mainpowerConfig);
+         }
+      } catch (error) {
+         console.error('❌ [Distribution] Erro ao carregar estado:', error);
+      }
+   }, []);
+
+   // Save state to localStorage whenever it changes (only if NOT editing)
+   useEffect(() => {
+      if (initialProject) return; // Don't save if editing existing project
+
+      // Skip saving on first render
+      if (isFirstRender.current) {
+         isFirstRender.current = false;
+         return;
+      }
+
+      try {
+         const state = {
+            ports,
+            voltage,
+            projectName,
+            generatorConfig,
+            mainpowerConfig
+         };
+         console.log('💾 [Distribution] Salvando no localStorage:', state);
+         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+         console.error('❌ [Distribution] Erro ao salvar estado:', error);
+      }
+   }, [ports, voltage, projectName, generatorConfig, mainpowerConfig, initialProject]);
 
    // --- LOGIC ---
 
@@ -175,8 +260,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
          newPorts.push({
             id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-            name: `${bulkData.prefix} ${i}`,
-            abbreviation: `${bulkData.prefix.substring(0, 3).toUpperCase()}${i}`,
+            name: `${bulkData.prefix} ${i} `,
+            abbreviation: `${bulkData.prefix.substring(0, 3).toUpperCase()}${i} `,
             breakerAmps: Number(bulkData.amps),
             color: PORT_COLORS[colorIndex].value,
             items: []
@@ -190,21 +275,83 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
 
 
-   const removePort = (id: string, e?: React.MouseEvent) => {
+   const removePort = async (id: string, e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
-      if (confirm("Remover este circuito e todos os equipamentos nele?")) {
+      const confirmed = await confirm({
+         title: 'Remover Circuito',
+         message: 'Tem certeza que deseja remover este circuito e todos os equipamentos nele?',
+         variant: 'danger',
+         confirmText: 'Remover',
+         cancelText: 'Cancelar'
+      });
+
+      if (confirmed) {
          setPorts(ports.filter(p => p.id !== id));
          success('Circuito removido.');
       }
    };
 
-   const resetAllPorts = () => {
+   const resetAllPorts = async () => {
       if (ports.length === 0) return;
-      if (confirm("ATENÇÃO: Isso apagará todos os circuitos e configurações atuais. Deseja continuar?")) {
-         setPorts([]); // Limpa tudo
-         info('Todos os circuitos foram removidos.');
+      const confirmed = await confirm({
+         title: 'Limpar Tudo',
+         message: 'ATENÇÃO: Isso apagará todos os circuitos e configurações atuais. Deseja continuar?',
+         variant: 'warning',
+         confirmText: 'Limpar Tudo',
+         cancelText: 'Cancelar'
+      });
+
+      if (confirmed) {
+         setPorts([]);
+         setVoltage(220);
+         setProjectName('');
+         localStorage.removeItem(STORAGE_KEY);
+         info('Todos os dados foram limpos.');
       }
    };
+
+   // --- FUNÇÕES DE BALANCEAMENTO DE FASES ---
+
+   const handleGeneratorChange = (config: GeneratorConfig) => {
+      setGeneratorConfig(config);
+      success('Configuração do gerador atualizada!');
+   };
+
+   const handleMainpowerChange = (config: MainpowerConfig) => {
+      // Se ativou o auto-balanceamento, aplicar imediatamente
+      if (config.autoBalance && !mainpowerConfig.autoBalance && ports.length > 0) {
+         const balanced = balancePhases(ports, voltage, config);
+         setMainpowerConfig(balanced);
+         success('Balanceamento automático aplicado!');
+      } else {
+         setMainpowerConfig(config);
+      }
+   };
+
+   const applyAutoBalance = () => {
+      if (ports.length === 0) {
+         info('Adicione circuitos para balancear.');
+         return;
+      }
+
+      const balanced = balancePhases(ports, voltage, mainpowerConfig);
+      setMainpowerConfig(balanced);
+      success('Balanceamento automático aplicado!');
+   };
+
+   // Atualizar cargas das fases quando circuitos mudarem
+   useEffect(() => {
+      if (mainpowerConfig.enabled && mainpowerConfig.autoBalance && ports.length > 0) {
+         const updated = updatePhaseLoads(mainpowerConfig, ports, voltage);
+         // Só atualizar se houver mudança real nas cargas
+         const hasChanged = updated.phases.some((phase, idx) =>
+            Math.abs(phase.currentLoad - mainpowerConfig.phases[idx].currentLoad) > 0.01
+         );
+         if (hasChanged) {
+            setMainpowerConfig(updated);
+         }
+      }
+   }, [ports, voltage, mainpowerConfig.enabled, mainpowerConfig.autoBalance]);
 
    const openEquipModal = (portId: string) => {
       setActivePortId(portId);
@@ -216,7 +363,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
       if (!activePortId) return;
 
       if (!isCompatible(voltage, equipment.voltage)) {
-         error(`Bloqueado: Item ${equipment.voltage}V incompatível com sistema ${voltage}V`);
+         error(`Bloqueado: Item ${equipment.voltage}V incompatível com sistema ${voltage} V`);
          return;
       }
 
@@ -248,6 +395,17 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
       }));
    };
 
+   const removeItemFromPort = (portId: string, itemId: string) => {
+      setPorts(ports.map(p => {
+         if (p.id !== portId) return p;
+         return {
+            ...p,
+            items: p.items.filter(i => i.equipmentId !== itemId)
+         };
+      }));
+      success('Equipamento removido do circuito.');
+   };
+
    // --- CALCULATIONS ---
 
    // --- DRAG AND DROP LOGIC ---
@@ -270,13 +428,27 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
       const { portIndex: sourcePortIndex, itemIndex } = draggedItem;
 
-      // Se for o mesmo porto, apenas reordenar (opcional, por enquanto ignorar se for o mesmo ou implementar reorder depois)
-      // Vamos focar em mover entre circuitos
+      // Se for o mesmo porto, ignorar
       if (sourcePortIndex === targetPortIndex) {
          setDraggedItem(null);
          return;
       }
 
+      // Abrir modal para escolher entre mover ou copiar
+      setMoveOrCopyModal({
+         isOpen: true,
+         sourcePortIndex,
+         targetPortIndex,
+         itemIndex
+      });
+
+      setDraggedItem(null);
+   };
+
+   const handleMoveItem = () => {
+      if (!moveOrCopyModal) return;
+
+      const { sourcePortIndex, targetPortIndex, itemIndex } = moveOrCopyModal;
       const newPorts = [...ports];
       const sourcePort = newPorts[sourcePortIndex];
       const targetPort = newPorts[targetPortIndex];
@@ -288,8 +460,27 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
       targetPort.items.push(itemToMove);
 
       setPorts(newPorts);
-      setDraggedItem(null);
-      success(`Item movido para ${targetPort.name}`);
+      success(`Item movido para ${targetPort.name} `);
+      setMoveOrCopyModal(null);
+   };
+
+   const handleCopyItem = () => {
+      if (!moveOrCopyModal) return;
+
+      const { sourcePortIndex, targetPortIndex, itemIndex } = moveOrCopyModal;
+      const newPorts = [...ports];
+      const sourcePort = newPorts[sourcePortIndex];
+      const targetPort = newPorts[targetPortIndex];
+
+      // Copiar item (mantém no origem)
+      const itemToCopy = { ...sourcePort.items[itemIndex] };
+
+      // Adicionar ao destino
+      targetPort.items.push(itemToCopy);
+
+      setPorts(newPorts);
+      success(`Item copiado para ${targetPort.name} `);
+      setMoveOrCopyModal(null);
    };
 
    const getPortTotals = (port: Port) => {
@@ -334,7 +525,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
       if (portsWithoutBreaker.length > 0) {
          const circuitNames = portsWithoutBreaker.map(p => p.name).join(', ');
-         error(`Bloqueado: Configure a amperagem do disjuntor para os circuitos: ${circuitNames}`);
+         error(`Bloqueado: Configure a amperagem do disjuntor para os circuitos: ${circuitNames} `);
          return;
       }
 
@@ -348,7 +539,9 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
          ports: ports,
          totalWatts: globalTotals.totalWatts,
          totalAmperes: globalTotals.totalAmperes,
-         createdAt: ''
+         createdAt: '',
+         generatorConfig: generatorConfig.enabled ? generatorConfig : undefined,
+         mainpowerConfig: mainpowerConfig.enabled ? mainpowerConfig : undefined
       };
 
       try {
@@ -377,6 +570,21 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
    return (
       <div className="animate-fade-in pb-20 relative">
+         <ConfirmModalComponent />
+
+         {/* Modal Mover/Copiar */}
+         {moveOrCopyModal && (
+            <MoveOrCopyModal
+               isOpen={moveOrCopyModal.isOpen}
+               onClose={() => setMoveOrCopyModal(null)}
+               onMove={handleMoveItem}
+               onCopy={handleCopyItem}
+               itemName={ports[moveOrCopyModal.sourcePortIndex]?.items[moveOrCopyModal.itemIndex]?.equipment.name || ''}
+               sourceCircuit={ports[moveOrCopyModal.sourcePortIndex]?.name || ''}
+               targetCircuit={ports[moveOrCopyModal.targetPortIndex]?.name || ''}
+            />
+         )}
+
          {/* HEADER */}
          <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
@@ -414,6 +622,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
             </div>
          </div>
 
+         {/* POWER CONFIG PANEL REMOVED (Moved to Power System tab) */}
+
          {/* SETTINGS BAR */}
          <div className="bg-surface border border-slate-700/50 rounded-xl p-3 mb-6 flex flex-wrap gap-4 items-center justify-between shadow-lg">
             <div className="flex items-center gap-4">
@@ -434,9 +644,9 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                      <button
                         onClick={resetAllPorts}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/30 rounded-lg text-xs text-slate-400 hover:text-red-400 transition-all active:scale-95 h-9"
-                        title="Apagar todos os circuitos"
+                        title="Limpar todos os dados"
                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Resetar
+                        <RotateCcw className="w-3.5 h-3.5" /> Limpar Tudo
                      </button>
                   </div>
                )}
@@ -480,12 +690,13 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                      <div
                         key={port.id}
                         className={`
-                              bg-surface rounded-xl border transition-all duration-300 flex flex-col relative overflow-hidden group/card hover:shadow-xl
+                           bg-surface rounded-xl border transition-all duration-300 flex flex-col relative overflow-hidden group/card hover:shadow-xl
                               ${status.color === 'red' ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' :
-                              status.color === 'orange' ? 'border-orange-500/50' : 'border-slate-700 hover:border-slate-600'}
+                              status.color === 'orange' ? 'border-orange-500/50' : 'border-slate-700 hover:border-slate-600'
+                           }
                               ${draggedItem && draggedItem.portIndex !== index ? 'border-dashed border-blue-500 bg-blue-500/5 ring-2 ring-blue-500/20' : ''}
-                              animate-in fade-in zoom-in-95
-                           `}
+                           animate-in fade-in zoom-in-95
+                        `}
                         style={{ animationDelay: `${index * 0.05}s` }}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, index)}
@@ -526,11 +737,12 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
                            {/* Alert Status Box */}
                            <div className={`
-                        flex items-center gap-3 p-2.5 rounded-lg border mb-3 transition-colors
-                        ${status.color === 'red' ? 'bg-red-500/10 border-red-500/30 text-red-200' :
+                              flex items-center gap-3 p-2.5 rounded-lg border mb-3 transition-colors
+                              ${status.color === 'red' ? 'bg-red-500/10 border-red-500/30 text-red-200' :
                                  status.color === 'orange' ? 'bg-orange-500/10 border-orange-500/30 text-orange-200' :
-                                    'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'}
-                     `}>
+                                    'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                              }
+                           `}>
                               <status.icon className={`w-5 h-5 shrink-0 ${status.color === 'red' ? 'animate-pulse' : ''}`} />
                               <div className="overflow-hidden flex-1">
                                  <div className="font-bold text-xs truncate">{status.text}</div>
@@ -545,7 +757,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                            <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
                               <div
                                  className={`h-full transition-all duration-500 ${status.color === 'red' ? 'bg-red-500' :
-                                    status.color === 'orange' ? 'bg-orange-500' : 'bg-emerald-500'}`}
+                                    status.color === 'orange' ? 'bg-orange-500' : 'bg-emerald-500'
+                                    }`}
                                  style={{ width: `${Math.min(loadPercent, 100)}%` }}
                               ></div>
                            </div>
@@ -578,12 +791,19 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                                           <span>FP {item.equipment.powerFactor}</span>
                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                       <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 h-7 overflow-hidden">
-                                          <button onClick={() => updateItemQty(port.id, item.equipmentId, -1)} className="px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition-colors">-</button>
-                                          <span className="px-1.5 text-xs font-mono text-white min-w-[20px] text-center">{item.quantity}</span>
-                                          <button onClick={() => updateItemQty(port.id, item.equipmentId, 1)} className="px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition-colors">+</button>
-                                       </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                       <QuantityInput
+                                          value={item.quantity}
+                                          onChange={(newQty) => updateItemQty(port.id, item.equipmentId, newQty - item.quantity)}
+                                          min={1}
+                                       />
+                                       <button
+                                          onClick={() => removeItemFromPort(port.id, item.equipmentId)}
+                                          className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                          title="Remover item"
+                                       >
+                                          <X className="w-4 h-4" />
+                                       </button>
                                     </div>
                                  </div>
                               ))
@@ -702,7 +922,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                                  type="button"
                                  key={c.value}
                                  onClick={() => setPortFormData({ ...portFormData, color: c.value })}
-                                 className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${c.bg} ${portFormData.color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                                 className={`w - 8 h - 8 rounded - full border - 2 transition - transform hover: scale - 110 ${c.bg} ${portFormData.color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'} `}
                                  title={c.label}
                               />
                            ))}

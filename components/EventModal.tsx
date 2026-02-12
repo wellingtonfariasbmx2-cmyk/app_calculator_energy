@@ -198,24 +198,24 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-            <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl">
-                    <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-600 rounded-lg">
-                            <Calendar className="w-5 h-5 text-white" />
+                <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
+                    <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                        <div className="p-1 sm:p-1.5 bg-purple-600 rounded-lg">
+                            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
                         {event ? 'Editar Evento' : 'Novo Evento'}
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg">
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-                    <div className="p-4 sm:p-6 space-y-6">
+                    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
                         {/* Informações Básicas */}
                         <div>
                             <h3 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
@@ -433,8 +433,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             onClick={() => !isSelected && !isUnavailable && handleAddEquipment(eq)}
                                             disabled={isSelected || isUnavailable}
                                             className={`w-full text-left p-3 rounded-lg border transition-all ${isSelected || isUnavailable
-                                                    ? 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
-                                                    : 'bg-slate-900 border-slate-700 hover:border-purple-500 hover:bg-slate-800'
+                                                ? 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                                                : 'bg-slate-900 border-slate-700 hover:border-purple-500 hover:bg-slate-800'
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
@@ -463,18 +463,18 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                     </div>
 
                     {/* Footer */}
-                    <div className="flex flex-col sm:flex-row justify-end gap-3 p-4 sm:p-6 border-t border-slate-700 bg-slate-900/30">
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-3 sm:p-6 border-t border-slate-700 bg-slate-900/30 sticky bottom-0">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="order-2 sm:order-1 px-6 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
+                            className="order-2 sm:order-1 px-6 py-3 sm:py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="order-1 sm:order-2 bg-purple-600 hover:bg-purple-700 text-white px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="order-1 sm:order-2 bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <>

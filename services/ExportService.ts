@@ -51,9 +51,77 @@ export const ExportService = {
         // Flatten the structure: Port Name | Breaker | Item | Qty | Watts | Amps
         const rows: any[] = [];
 
+        // Adicionar informações do sistema de energia no início
+        if (project.generatorConfig?.enabled) {
+            rows.push({
+                Secao: 'GERADOR',
+                Info: `${project.generatorConfig.powerKVA} kVA`,
+                Detalhe: `${project.generatorConfig.isThreePhase ? 'Trifásico' : 'Monofásico'} - ${project.generatorConfig.voltage}V`,
+                Circuito: '',
+                Disjuntor: '',
+                Equipamento: '',
+                Qtd: '',
+                Watts_Unit: '',
+                Total_Watts: '',
+                Corrente: ''
+            });
+        }
+
+        if (project.mainpowerConfig?.enabled) {
+            const systemType = project.mainpowerConfig.systemType === 'single' ? 'Monofásico' :
+                project.mainpowerConfig.systemType === 'two-phase' ? 'Bifásico' : 'Trifásico';
+
+            rows.push({
+                Secao: 'MAINPOWER',
+                Info: systemType,
+                Detalhe: `${project.mainpowerConfig.totalPorts} portas - ${project.mainpowerConfig.phases.length} fase(s)`,
+                Circuito: '',
+                Disjuntor: '',
+                Equipamento: '',
+                Qtd: '',
+                Watts_Unit: '',
+                Total_Watts: '',
+                Corrente: ''
+            });
+
+            // Adicionar informações de cada fase
+            project.mainpowerConfig.phases.forEach((phase: any) => {
+                rows.push({
+                    Secao: `FASE ${phase.phaseId}`,
+                    Info: `${phase.currentLoad.toFixed(1)}A / ${phase.maxAmps.toFixed(1)}A`,
+                    Detalhe: `${phase.ports.length} circuito(s)`,
+                    Circuito: '',
+                    Disjuntor: '',
+                    Equipamento: '',
+                    Qtd: '',
+                    Watts_Unit: '',
+                    Total_Watts: '',
+                    Corrente: ''
+                });
+            });
+
+            // Linha em branco
+            rows.push({
+                Secao: '',
+                Info: '',
+                Detalhe: '',
+                Circuito: '',
+                Disjuntor: '',
+                Equipamento: '',
+                Qtd: '',
+                Watts_Unit: '',
+                Total_Watts: '',
+                Corrente: ''
+            });
+        }
+
+        // Adicionar circuitos
         project.ports.forEach((port: any) => {
             if (port.items.length === 0) {
                 rows.push({
+                    Secao: 'CIRCUITO',
+                    Info: '',
+                    Detalhe: '',
                     Circuito: port.name,
                     Disjuntor: `${port.breakerAmps}A`,
                     Equipamento: '(Vazio)',
@@ -69,6 +137,9 @@ export const ExportService = {
                     const amps = totalWatts / (project.voltageSystem * (item.equipment.powerFactor || 1));
 
                     rows.push({
+                        Secao: 'CIRCUITO',
+                        Info: '',
+                        Detalhe: '',
                         Circuito: port.name,
                         Disjuntor: `${port.breakerAmps}A`,
                         Equipamento: item.equipment.name,

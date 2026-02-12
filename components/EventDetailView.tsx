@@ -4,6 +4,7 @@ import { Event, Equipment, DistributionProject } from '../types';
 import { EventService } from '../services/EventService';
 import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
+import { useConfirm } from './ConfirmModal';
 
 interface EventDetailViewProps {
     eventId: string;
@@ -21,6 +22,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
     const [searchQuery, setSearchQuery] = useState('');
 
     const { success, error: showError } = useToast();
+    const { confirm, ConfirmModalComponent } = useConfirm();
 
     useEffect(() => {
         loadEventDetails();
@@ -67,7 +69,15 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
     };
 
     const handleUnlinkProject = async (projectId: string) => {
-        if (!confirm('Desvincular este projeto do evento?')) return;
+        const confirmed = await confirm({
+            title: 'Desvincular Projeto',
+            message: 'Tem certeza que deseja desvincular este projeto do evento?',
+            variant: 'warning',
+            confirmText: 'Desvincular',
+            cancelText: 'Cancelar'
+        });
+
+        if (!confirmed) return;
 
         try {
             await DataService.updateCalculation(projectId, { event_id: null });
@@ -127,6 +137,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
 
     return (
         <div className="animate-fade-in pb-20">
+            <ConfirmModalComponent />
             {/* Header */}
             <div className="mb-6">
                 <button

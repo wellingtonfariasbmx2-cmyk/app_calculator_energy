@@ -35,6 +35,31 @@ export interface Calculation {
   createdAt: string;
 }
 
+// --- NOVOS TIPOS PARA SISTEMA DE BALANCEAMENTO DE FASES ---
+
+export interface GeneratorConfig {
+  enabled: boolean;
+  powerKVA: number; // Potência em kVA
+  isThreePhase: boolean;
+  voltage: number; // 110, 220, 380
+}
+
+export interface PhaseConfig {
+  phaseId: 'A' | 'B' | 'C';
+  color: string; // Cor para visualização
+  maxAmps: number; // Limite de corrente por fase
+  currentLoad: number; // Carga atual em amperes
+  ports: string[]; // IDs das portas nesta fase (4 portas por fase)
+}
+
+export interface MainpowerConfig {
+  enabled: boolean;
+  systemType: 'single' | 'two-phase' | 'three-phase'; // Tipo de sistema
+  totalPorts: number; // 12 portas (4 por fase para trifásico)
+  phases: PhaseConfig[];
+  autoBalance: boolean; // Balanceamento automático ativado
+}
+
 // --- NOVOS TIPOS PARA DISTRIBUIÇÃO ---
 
 export interface Port {
@@ -58,6 +83,10 @@ export interface DistributionProject {
   totalAmperes: number;
   createdAt: string;
 
+  // Sistema de Energia
+  generatorConfig?: GeneratorConfig;
+  mainpowerConfig?: MainpowerConfig;
+
   // NOVO: Vinculação com eventos
   eventId?: string; // ID do evento ao qual este projeto está vinculado
 }
@@ -66,6 +95,7 @@ export interface DistributionProject {
 
 export interface Event {
   id: string;
+  type: 'event'; // Discriminated union
   name: string;
   clientName?: string; // Nome do cliente (simplificado)
   venue: string; // Local do evento
@@ -96,4 +126,4 @@ export interface EquipmentAllocation {
 
 export type AnyReport = Calculation | DistributionProject | Event;
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability';
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system';

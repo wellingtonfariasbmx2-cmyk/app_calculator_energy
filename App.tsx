@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp } from 'lucide-react';
+import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -12,6 +12,8 @@ import { ViewState } from './types';
 import { ToastProvider, useToast } from './components/Toast';
 import { LoginView } from './components/LoginView';
 import { supabase } from './services/supabaseClient';
+import { MobileDrawer } from './components/MobileDrawer';
+import { PowerSystemView } from './components/PowerSystemView';
 
 export default function App() {
   return (
@@ -87,6 +89,7 @@ function MainLayout() {
   const [session, setSession] = useState<any>(null);
   const [currentView, setCurrentView] = useState<ViewState>('equipments');
   const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { success, info } = useToast();
 
   const handleLogout = async () => {
@@ -149,6 +152,7 @@ function MainLayout() {
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
     { id: 'calculator', label: 'Calc. Rápido', icon: Calculator },
     { id: 'distribution', label: 'Distribuição', icon: FolderKanban },
+    { id: 'power-system', label: 'Elétrica', icon: Activity },
     { id: 'reports', label: 'Relatórios', icon: FileText },
   ];
 
@@ -195,6 +199,8 @@ function MainLayout() {
             />
           </div>
         );
+      case 'power-system':
+        return <div className="animate-fade-in"><PowerSystemView /></div>;
       case 'reports':
         return (
           <div className="animate-fade-in">
@@ -213,25 +219,47 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-background font-sans text-slate-200 selection:bg-blue-500/30 selection:text-blue-200">
+      {/* Mobile Drawer */}
+      <MobileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        currentView={currentView}
+        onNavigate={setCurrentView}
+        navItems={navItems}
+        userEmail={session.user.email}
+        onLogout={handleLogout}
+      />
+
       {/* Navbar */}
       <nav className="border-b border-slate-800 bg-background/80 backdrop-blur-md fixed top-0 w-full z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
 
-            {/* Logo Area */}
-            <div className="flex items-center gap-3 group cursor-default">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all duration-300 group-hover:scale-105">
-                <Zap className="w-5 h-5 text-white fill-current animate-pulse" />
-              </div>
-              <div className="leading-tight">
-                <h1 className="text-white font-bold text-lg tracking-tight group-hover:text-blue-400 transition-colors">LightLoad Pro</h1>
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors">
-                    {session.user.email?.split('@')[0]}
-                  </p>
-                  <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors" title="Sair">
-                    <LogOut className="w-3 h-3" />
-                  </button>
+            {/* Mobile Menu Button + Logo */}
+            <div className="flex items-center gap-3">
+              {/* Hamburger Menu - Mobile Only */}
+              <button
+                onClick={() => setIsDrawerOpen(true)}
+                className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors active:scale-95"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+
+              {/* Logo Area */}
+              <div className="flex items-center gap-3 group cursor-default">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all duration-300 group-hover:scale-105">
+                  <Zap className="w-5 h-5 text-white fill-current animate-pulse" />
+                </div>
+                <div className="leading-tight">
+                  <h1 className="text-white font-bold text-lg tracking-tight group-hover:text-blue-400 transition-colors">LightLoad Pro</h1>
+                  <div className="hidden sm:flex items-center gap-2">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors">
+                      {session.user.email?.split('@')[0]}
+                    </p>
+                    <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors" title="Sair">
+                      <LogOut className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -262,34 +290,8 @@ function MainLayout() {
         </div>
       </nav>
 
-      {/* Mobile Navigation (Bottom Bar) */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-surface/95 backdrop-blur-lg border-t border-slate-800 z-50 px-4 py-2 flex justify-around items-center safe-area-pb">
-        {navItems.map((item) => {
-          const isActive = currentView === item.id;
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setCurrentView(item.id as ViewState)}
-              className={`
-                  flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-300
-                  ${isActive ? 'text-blue-400 scale-110' : 'text-slate-500 hover:text-slate-300'}
-                `}
-            >
-              <div className={`relative ${isActive ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : ''}`}>
-                <Icon className={`w-6 h-6 ${isActive ? 'fill-blue-400/20' : ''}`} />
-                {isActive && <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-400 rounded-full"></span>}
-              </div>
-              <span className={`text-[10px] font-medium transition-all ${isActive ? 'opacity-100 font-bold' : 'opacity-70'}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Main Content Area */}
-      <main className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-28 md:pb-12 min-h-[calc(100vh-80px)]">
+      <main className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-12 min-h-[calc(100vh-80px)]">
         {renderView()}
       </main>
     </div>

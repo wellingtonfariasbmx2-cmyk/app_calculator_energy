@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   client_name TEXT,
-  venue TEXT NOT NULL,
+  location TEXT NOT NULL,
   address TEXT,
   start_date TIMESTAMPTZ NOT NULL,
   end_date TIMESTAMPTZ NOT NULL,

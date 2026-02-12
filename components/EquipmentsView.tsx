@@ -4,6 +4,7 @@ import { Equipment } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
+import { useConfirm } from './ConfirmModal';
 
 export const EquipmentsView: React.FC = () => {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -15,6 +16,7 @@ export const EquipmentsView: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const { success, error, info } = useToast();
+  const { confirm, ConfirmModalComponent } = useConfirm();
 
   useEffect(() => {
     loadData();
@@ -40,7 +42,15 @@ export const EquipmentsView: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (confirm('Tem certeza que deseja remover este equipamento?')) {
+    const confirmed = await confirm({
+      title: 'Remover Equipamento',
+      message: 'Tem certeza que deseja remover este equipamento? Esta ação não pode ser desfeita.',
+      variant: 'danger',
+      confirmText: 'Remover',
+      cancelText: 'Cancelar'
+    });
+
+    if (confirmed) {
       try {
         setEquipments(prev => prev.filter(item => item.id !== id));
         await DataService.deleteEquipment(id);
@@ -122,6 +132,7 @@ export const EquipmentsView: React.FC = () => {
 
   return (
     <div className="animate-fade-in pb-20 relative">
+      <ConfirmModalComponent />
       <div className="mb-6">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
           <div className="flex items-center gap-3">
@@ -286,21 +297,21 @@ export const EquipmentsView: React.FC = () => {
 
       {/* MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl">
-              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                <div className="p-1.5 bg-blue-600 rounded-lg">
-                  <Zap className="w-5 h-5 text-white" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[95vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
+              <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                <div className="p-1 sm:p-1.5 bg-blue-600 rounded-lg">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 {editingItem.id ? 'Editar Equipamento' : 'Novo Equipamento'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg">
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <form onSubmit={handleSave} className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Equipamento</label>
                 <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-600"
@@ -396,9 +407,9 @@ export const EquipmentsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-6 border-t border-slate-700">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="order-2 sm:order-1 px-6 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm">Cancelar</button>
-                <button type="submit" className="order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+              <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-700 sticky bottom-0 bg-surface">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="order-2 sm:order-1 px-6 py-3 sm:py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm">Cancelar</button>
+                <button type="submit" className="order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                   <Save className="w-4 h-4" /> Salvar
                 </button>
               </div>

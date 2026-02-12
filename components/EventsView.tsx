@@ -5,6 +5,7 @@ import { EventService } from '../services/EventService';
 import { useToast } from './Toast';
 import { EventModal } from './EventModal';
 import { EventDetailView } from './EventDetailView';
+import { useConfirm } from './ConfirmModal';
 
 interface EventsViewProps {
     onNavigateToDistribution?: (eventId: string) => void;
@@ -19,6 +20,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
     const { success, error: showError } = useToast();
+    const { confirm, ConfirmModalComponent } = useConfirm();
 
     useEffect(() => {
         loadEvents();
@@ -38,7 +40,15 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir este evento?')) return;
+        const confirmed = await confirm({
+            title: 'Excluir Evento',
+            message: 'Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.',
+            variant: 'danger',
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar'
+        });
+
+        if (!confirmed) return;
 
         try {
             await EventService.deleteEvent(id);
@@ -50,7 +60,15 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     };
 
     const handleComplete = async (id: string) => {
-        if (!confirm('Finalizar evento e devolver equipamentos ao estoque?')) return;
+        const confirmed = await confirm({
+            title: 'Finalizar Evento',
+            message: 'Finalizar evento e devolver equipamentos ao estoque?',
+            variant: 'info',
+            confirmText: 'Finalizar',
+            cancelText: 'Cancelar'
+        });
+
+        if (!confirmed) return;
 
         try {
             await EventService.completeEvent(id);
@@ -62,7 +80,15 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     };
 
     const handleCancel = async (id: string) => {
-        if (!confirm('Cancelar evento e devolver equipamentos ao estoque?')) return;
+        const confirmed = await confirm({
+            title: 'Cancelar Evento',
+            message: 'Cancelar evento e devolver equipamentos ao estoque?',
+            variant: 'warning',
+            confirmText: 'Cancelar Evento',
+            cancelText: 'Voltar'
+        });
+
+        if (!confirmed) return;
 
         try {
             await EventService.cancelEvent(id);
@@ -120,6 +146,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
 
     return (
         <div className="animate-fade-in pb-20">
+            <ConfirmModalComponent />
             {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center justify-between mb-6">

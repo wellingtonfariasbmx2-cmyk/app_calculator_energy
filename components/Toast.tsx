@@ -79,7 +79,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => 
     if (toasts.length === 0) return null;
 
     return (
-        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 max-w-md pointer-events-none">
+        <div className="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-[100] flex flex-col gap-3 pointer-events-none">
             {toasts.map((toast, index) => (
                 <ToastItem
                     key={toast.id}
@@ -137,7 +137,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove, index }) => {
             className={`
         ${bgColor} ${borderColor} ${textColor}
         border backdrop-blur-md rounded-lg p-4 shadow-lg
-        flex items-start gap-3 min-w-[320px] max-w-md
+        flex items-start gap-3 w-full
         pointer-events-auto
         animate-slide-in-right
       `}

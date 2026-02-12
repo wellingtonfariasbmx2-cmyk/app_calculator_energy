@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calculator, Save, Plus, Trash2, ArrowRight, Zap, AlertTriangle, Info, X, ShieldCheck, Flame, Cable, Search, Download } from 'lucide-react';
+import { Calculator, Save, Plus, Trash2, ArrowRight, Zap, AlertTriangle, Info, X, ShieldCheck, Flame, Cable, Search, Download, RotateCcw } from 'lucide-react';
 import { Equipment, CalculationItem } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
 import { isCompatible } from '../services/utils';
+import { useConfirm } from './ConfirmModal';
+import { QuantityInput } from './QuantityInput';
+
+const STORAGE_KEY = 'lightload_calculator_state';
 
 export const CalculatorView: React.FC = () => {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -14,6 +18,7 @@ export const CalculatorView: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<CalculationItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState(''); // New search state
+  const isFirstRender = React.useRef(true);
 
   // Save Modal State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -21,10 +26,51 @@ export const CalculatorView: React.FC = () => {
   const [saveDesc, setSaveDesc] = useState('');
 
   const { success, error } = useToast();
+  const { confirm, ConfirmModalComponent } = useConfirm();
 
   useEffect(() => {
     DataService.getEquipments().then(setEquipments);
   }, []);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      console.log('🔍 Carregando do localStorage:', saved);
+      if (saved) {
+        const state = JSON.parse(saved);
+        console.log('✅ Estado carregado:', state);
+        setSelectedItems(state.selectedItems || []);
+        setNetworkVoltage(state.networkVoltage || 220);
+        setPhases(state.phases || 1);
+        setCircuitBreaker(state.circuitBreaker || '');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar estado:', error);
+    }
+  }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    // Skip saving on first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    try {
+      const state = {
+        selectedItems,
+        networkVoltage,
+        phases,
+        circuitBreaker
+      };
+      console.log('💾 Salvando no localStorage:', state);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.error('❌ Erro ao salvar estado:', error);
+    }
+  }, [selectedItems, networkVoltage, phases, circuitBreaker]);
 
   // --- Logic ---
   const addItem = (equipment: Equipment) => {
@@ -46,9 +92,17 @@ export const CalculatorView: React.FC = () => {
     // setIsAdding(false); 
   };
 
-  const updateQuantity = (id: string, qty: number) => {
+  const updateQuantity = async (id: string, qty: number) => {
     if (qty < 1) {
-      if (confirm('Remover este item da lista?')) {
+      const confirmed = await confirm({
+        title: 'Remover Item',
+        message: 'Tem certeza que deseja remover este item da lista?',
+        variant: 'danger',
+        confirmText: 'Remover',
+        cancelText: 'Cancelar'
+      });
+
+      if (confirmed) {
         setSelectedItems(selectedItems.filter(i => i.equipmentId !== id));
         success('Item removido.');
       }
@@ -117,6 +171,25 @@ export const CalculatorView: React.FC = () => {
 
     return { totalWatts, totalVA, totalAmperes, ampsPerPhase, totalCount };
   }, [selectedItems, networkVoltage, phases]);
+
+  const handleClearAll = async () => {
+    const confirmed = await confirm({
+      title: 'Limpar Tudo',
+      message: 'Tem certeza que deseja limpar todos os dados e começar do zero? Esta ação não pode ser desfeita.',
+      variant: 'warning',
+      confirmText: 'Limpar Tudo',
+      cancelText: 'Cancelar'
+    });
+
+    if (confirmed) {
+      setSelectedItems([]);
+      setNetworkVoltage(220);
+      setPhases(1);
+      setCircuitBreaker('');
+      localStorage.removeItem(STORAGE_KEY);
+      success('Dados limpos!');
+    }
+  };
 
   const percentLoad = circuitBreaker && !isNaN(Number(circuitBreaker)) && Number(circuitBreaker) > 0
     ? (totals.ampsPerPhase / Number(circuitBreaker)) * 100
@@ -190,6 +263,7 @@ export const CalculatorView: React.FC = () => {
 
   return (
     <div className="animate-fade-in pb-20 relative">
+      <ConfirmModalComponent />
       <div className="mb-8 flex justify-between items-start">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -201,6 +275,15 @@ export const CalculatorView: React.FC = () => {
           <p className="text-slate-400 text-sm">Dimensione cabos, disjuntores e carga total do sistema</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleClearAll}
+            disabled={selectedItems.length === 0}
+            className="bg-slate-800 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 hover:text-red-400 px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all border border-slate-700 hover:border-red-500/30"
+            title="Limpar Tudo"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="hidden sm:inline">Limpar</span>
+          </button>
           <button
             onClick={() => ExportService.exportCalculation(selectedItems, networkVoltage, 'Calculo_Carga')}
             disabled={selectedItems.length === 0}
@@ -275,6 +358,51 @@ export const CalculatorView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Alert Bar - Fixed at top (only visible on mobile when breaker is set) */}
+      {circuitBreaker && (
+        <div className="md:hidden sticky top-16 z-40 mb-4 animate-slide-in-down">
+          <div className={`
+            bg-surface/95 backdrop-blur-md border-b-2 p-3 shadow-lg transition-all duration-300
+            ${status.status === 'danger' ? 'border-red-500 bg-red-500/5' :
+              status.status === 'warning' ? 'border-orange-500 bg-orange-500/5' :
+                'border-emerald-500 bg-emerald-500/5'}
+          `}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`
+                p-1.5 rounded-full
+                ${status.status === 'danger' ? 'bg-red-500 animate-pulse' :
+                  status.status === 'warning' ? 'bg-orange-500' :
+                    'bg-emerald-500'}
+              `}>
+                <status.icon className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className={`
+                  font-bold text-sm
+                  ${status.status === 'danger' ? 'text-red-400' :
+                    status.status === 'warning' ? 'text-orange-400' :
+                      'text-emerald-400'}
+                `}>{status.text}</h4>
+                <p className="text-xs text-slate-400">
+                  <span className="font-bold">{percentLoad.toFixed(1)}%</span> da capacidade
+                </p>
+              </div>
+            </div>
+
+            {/* Compact Progress Bar */}
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+              <div
+                className={`h-full transition-all duration-700
+                  ${percentLoad > 100 ? 'bg-gradient-to-r from-red-600 to-red-400' :
+                    percentLoad > 80 ? 'bg-gradient-to-r from-orange-500 to-yellow-400' :
+                      'bg-gradient-to-r from-emerald-600 to-emerald-400'}`}
+                style={{ width: `${Math.min(percentLoad, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: List */}
@@ -366,18 +494,11 @@ export const CalculatorView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-2 sm:mt-0">
-                      <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 h-9">
-                        <button
-                          onClick={() => updateQuantity(item.equipmentId, item.quantity - 1)}
-                          className="w-9 h-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-l-lg transition-colors"
-                        >-</button>
-                        <span className="w-10 text-center text-sm font-bold text-white border-x border-slate-800 h-full flex items-center justify-center bg-slate-800/50">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.equipmentId, item.quantity + 1)}
-                          className="w-9 h-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-r-lg transition-colors"
-                        >+</button>
-                      </div>
-
+                      <QuantityInput
+                        value={item.quantity}
+                        onChange={(newQty) => updateQuantity(item.equipmentId, newQty)}
+                        min={1}
+                      />
                       <div className="text-right min-w-[90px]">
                         <div className="text-xs text-slate-500 uppercase font-bold mb-0.5">Corrente</div>
                         <div className="text-emerald-400 font-bold font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 inline-block">

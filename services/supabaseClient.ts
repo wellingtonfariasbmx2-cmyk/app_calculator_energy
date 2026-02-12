@@ -68,6 +68,8 @@ const reportToDb = (report: AnyReport): any => ({
   total_amperes: report.totalAmperes,
   items: report.type === 'simple' ? (report as Calculation).items : null,
   ports: report.type === 'distribution' ? (report as DistributionProject).ports : null,
+  generator_config: report.type === 'distribution' ? (report as DistributionProject).generatorConfig : null,
+  mainpower_config: report.type === 'distribution' ? (report as DistributionProject).mainpowerConfig : null,
   created_at: report.createdAt
 });
 
@@ -88,7 +90,9 @@ const reportFromDb = (dbReport: any): AnyReport => {
     return {
       ...base,
       type: 'distribution',
-      ports: dbReport.ports || []
+      ports: dbReport.ports || [],
+      generatorConfig: dbReport.generator_config,
+      mainpowerConfig: dbReport.mainpower_config
     } as DistributionProject;
   } else {
     return {
