@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Download, Trash2, Eye, Calendar, Zap, FolderKanban, X, LayoutGrid, Copy, AlertTriangle, ShieldCheck, Flame, Edit2 } from 'lucide-react';
+import { FileText, Download, Trash2, Eye, Calendar, Zap, FolderKanban, X, LayoutGrid, Copy, AlertTriangle, ShieldCheck, Flame, Edit2, Cable, Plug } from 'lucide-react';
 import { AnyReport, DistributionProject, Port } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { jsPDF } from 'jspdf';
@@ -8,6 +8,7 @@ import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
 import { isCompatible } from '../services/utils';
 import { useConfirm } from './ConfirmModal';
+import { getCableSpecs, getCableColorClass } from '../utils/cableCalculations';
 
 export const ReportsView: React.FC<{ onEditDistribution?: (project: DistributionProject) => void }> = ({ onEditDistribution }) => {
     const [reports, setReports] = useState<AnyReport[]>([]);
@@ -186,6 +187,75 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
 
             let startY = 110;
 
+            // --- SEÇÃO DE ALERTAS (se houver problemas) ---
+            if (report.type === 'distribution') {
+                const distReport = report as DistributionProject;
+                const alerts: Array<{ type: string; count: number; icon: string; color: [number, number, number] }> = [];
+
+                // Detectar circuitos sem disjuntor
+                const portsWithoutBreaker = distReport.ports.filter(p => !p.breakerAmps || p.breakerAmps <= 0);
+                if (portsWithoutBreaker.length > 0) {
+                    alerts.push({ type: 'Sem Disjuntor', count: portsWithoutBreaker.length, icon: '!', color: [251, 146, 60] }); // Orange
+                }
+
+                // Detectar sobrecargas
+                let overloadCount = 0;
+                let warningCount = 0;
+                distReport.ports.forEach(port => {
+                    let portVA = 0;
+                    port.items.forEach(i => {
+                        const w = i.equipment.watts * i.quantity;
+                        portVA += w / (i.equipment.powerFactor || 1);
+                    });
+                    const portAmps = portVA / (distReport.voltageSystem || 220);
+                    const loadPercent = port.breakerAmps > 0 ? (portAmps / port.breakerAmps) * 100 : 0;
+
+                    if (loadPercent > 100) overloadCount++;
+                    else if (loadPercent > 80) warningCount++;
+                });
+
+                if (overloadCount > 0) {
+                    alerts.push({ type: 'SOBRECARGA', count: overloadCount, icon: 'X', color: [239, 68, 68] }); // Red
+                }
+                if (warningCount > 0) {
+                    alerts.push({ type: 'Atencao (>80%)', count: warningCount, icon: '!', color: [251, 146, 60] }); // Orange
+                }
+
+                // Incompatibilidades de tensão
+                const voltageErrors = distReport.ports.filter(p =>
+                    p.items.some(i => !isCompatible(distReport.voltageSystem, i.equipment.voltage))
+                ).length;
+                if (voltageErrors > 0) {
+                    alerts.push({ type: 'Tensao Incompativel', count: voltageErrors, icon: '!', color: [239, 68, 68] }); // Red
+                }
+
+                // Renderizar alertas se existir algum
+                if (alerts.length > 0) {
+                    // Background do quadro de alertas
+                    doc.setFillColor(254, 226, 226); // Red-50
+                    doc.setDrawColor(239, 68, 68); // Red-500
+                    doc.setLineWidth(0.5);
+                    doc.roundedRect(14, startY, 182, 8 + (alerts.length * 7), 2, 2, 'FD');
+
+                    // Título
+                    doc.setFontSize(10);
+                    doc.setTextColor(153, 27, 27); // Red-900
+                    doc.setFont("helvetica", "bold");
+                    doc.text("*** ALERTAS DO SISTEMA ***", 20, startY + 6);
+                    doc.setFont("helvetica", "normal");
+
+                    // Listar alertas
+                    doc.setFontSize(9);
+                    alerts.forEach((alert, idx) => {
+                        const y = startY + 13 + (idx * 7);
+                        doc.setTextColor(alert.color[0], alert.color[1], alert.color[2]);
+                        doc.text(`[${alert.icon}] ${alert.type}: ${alert.count} circuito(s)`, 25, y);
+                    });
+
+                    startY += 15 + (alerts.length * 7);
+                }
+            }
+
             // --- TABELAS DE EQUIPAMENTOS ---
             if (report.type === 'distribution') {
                 const distReport = report as DistributionProject;
@@ -215,6 +285,21 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
                     const safeVoltage = distReport.voltageSystem || 220;
                     const portAmps = safeVoltage > 0 ? portVA / safeVoltage : 0;
 
+                    // Cable specifications
+                    const cableSpecs = getCableSpecs(portAmps);
+
+                    // Determine status
+                    const loadPercent = port.breakerAmps > 0 ? (portAmps / port.breakerAmps) * 100 : 0;
+                    let statusText = '[OK] SEGURO';
+                    let statusColor: [number, number, number] = [16, 185, 129]; // Green
+                    if (loadPercent > 100) {
+                        statusText = '[X] SOBRECARGA';
+                        statusColor = [239, 68, 68]; // Red
+                    } else if (loadPercent > 80) {
+                        statusText = '[!] ATENCAO';
+                        statusColor = [251, 146, 60]; // Orange
+                    }
+
                     // Determine phase color
                     let phaseColor: [number, number, number] = [59, 130, 246]; // Default Blue
                     let phaseName = '';
@@ -242,11 +327,19 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
                     doc.setFont("helvetica", "normal");
 
                     const breakerInfo = port.breakerAmps ? `Disjuntor: ${port.breakerAmps}A` : 'Sem disjuntor definido';
+                    const cableInfo = `Cabo: ${cableSpecs.gauge}mm² • Conector: ${cableSpecs.connectorType}`;
                     doc.text(`${breakerInfo} • Carga: ${portAmps.toFixed(1)}A / ${(portWatts / 1000).toFixed(2)}kW`, 14, startY + 5);
+                    doc.text(cableInfo, 14, startY + 10);
 
-                    startY += 10;
+                    // Status badge
+                    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(statusText, 160, startY + 10);
+                    doc.setFont("helvetica", "normal");
 
-                    // Tabela de itens da porta
+                    startY += 17;
+
+                    // Tabela de itens da porta com colunas extras
                     const bodyData = port.items.map(item => {
                         const w = item.equipment.watts * item.quantity;
                         const pf = item.equipment.powerFactor || 1;
@@ -258,18 +351,30 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
                             `${item.equipment.watts}W`,
                             pf.toFixed(2),
                             `${(w / 1000).toFixed(2)} kW`,
-                            `${(va / 1000).toFixed(2)} kVA`,
                             `${amps.toFixed(1)} A`
                         ];
                     });
 
                     autoTable(doc, {
                         startY: startY,
-                        head: [['Equipamento', 'Qtd', 'Unit (W)', 'FP', 'Total kW', 'Total kVA', 'Amperes']],
+                        head: [['Equipamento', 'Qtd', 'Unit (W)', 'FP', 'Total kW', 'Amperes']],
                         body: bodyData,
-                        theme: 'striped',
-                        headStyles: { fillColor: phaseColor },
-                        styles: { fontSize: 9 },
+                        theme: 'grid', // Excel-like grid
+                        headStyles: {
+                            fillColor: phaseColor,
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            lineWidth: 0.1,
+                            lineColor: [200, 200, 200]
+                        },
+                        styles: {
+                            fontSize: 9,
+                            lineWidth: 0.1,
+                            lineColor: [200, 200, 200]
+                        },
+                        alternateRowStyles: {
+                            fillColor: [245, 245, 245] // Light gray for alternating rows
+                        },
                         margin: { left: 14, right: 14 }
                     });
 
@@ -573,6 +678,23 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
                                                                 {pAmps.toFixed(1)} A
                                                             </span>
                                                             <span className="text-xs text-slate-500">{port.breakerAmps}A Disjuntor</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Cable Specs */}
+                                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            <Cable className="w-3 h-3 text-slate-500 shrink-0" />
+                                                            <span className="text-slate-500 text-[10px]">Cabo:</span>
+                                                            <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-xs ${getCableColorClass(getCableSpecs(pAmps).color)}`}>
+                                                                {getCableSpecs(pAmps).gauge}mm²
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            <Plug className="w-3 h-3 text-slate-500 shrink-0" />
+                                                            <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${getCableColorClass(getCableSpecs(pAmps).color)}`} title={getCableSpecs(pAmps).connectorType}>
+                                                                {getCableSpecs(pAmps).connectorAmps}A
+                                                            </span>
                                                         </div>
                                                     </div>
 

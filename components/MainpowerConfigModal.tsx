@@ -20,7 +20,17 @@ export const MainpowerConfigModal: React.FC<MainpowerConfigModalProps> = ({
     projectPortsCount
 }) => {
     const [config, setConfig] = useState<MainpowerConfig>(initialConfig);
-    const [portsPerPhase, setPortsPerPhase] = useState<number>(4); // Default 4 por fase
+    const [portsPerPhase, setPortsPerPhase] = useState<string>('4'); // String para permitir vazio
+
+    // Reinicializar estado quando o modal abrir ou initialConfig mudar
+    useEffect(() => {
+        if (isOpen) {
+            setConfig(initialConfig);
+            // Calcular portsPerPhase baseado no totalPorts e systemType
+            const numPhases = initialConfig.systemType === 'three-phase' ? 3 : initialConfig.systemType === 'two-phase' ? 2 : 1;
+            setPortsPerPhase(Math.ceil(initialConfig.totalPorts / numPhases).toString());
+        }
+    }, [isOpen, initialConfig]);
 
     // Calcular maxAmps por fase baseado no gerador
     const calculateMaxAmpsPerPhase = (systemType: 'single' | 'two-phase' | 'three-phase'): number => {
@@ -52,9 +62,10 @@ export const MainpowerConfigModal: React.FC<MainpowerConfigModalProps> = ({
     // Atualizar portas totais quando mudar portas por fase ou sistema
     useEffect(() => {
         const numPhases = config.systemType === 'three-phase' ? 3 : config.systemType === 'two-phase' ? 2 : 1;
+        const portsNum = parseInt(portsPerPhase) || 0;
         setConfig(prev => ({
             ...prev,
-            totalPorts: portsPerPhase * numPhases
+            totalPorts: portsNum * numPhases
         }));
     }, [portsPerPhase, config.systemType]);
 
@@ -91,16 +102,16 @@ export const MainpowerConfigModal: React.FC<MainpowerConfigModalProps> = ({
         }));
     };
 
-    // Recalcular maxAmps quando o gerador mudar
+    // Recalcular maxAmps quando o gerador mudar OU quando o modal abrir
     useEffect(() => {
-        if (generatorConfig.enabled) {
+        if (generatorConfig.enabled && isOpen) {
             const maxAmps = calculateMaxAmpsPerPhase(config.systemType);
             setConfig(prev => ({
                 ...prev,
                 phases: prev.phases.map(phase => ({ ...phase, maxAmps }))
             }));
         }
-    }, [generatorConfig.powerKVA, generatorConfig.voltage]);
+    }, [generatorConfig.powerKVA, generatorConfig.voltage, isOpen]);
 
     if (!isOpen) return null;
 
@@ -227,11 +238,25 @@ export const MainpowerConfigModal: React.FC<MainpowerConfigModalProps> = ({
                                 <div className="relative">
                                     <input
                                         type="number"
-                                        min={1}
+                                        inputMode="decimal"
+                                        min={0}
                                         max={24}
                                         value={portsPerPhase}
-                                        onChange={(e) => setPortsPerPhase(Math.max(1, parseInt(e.target.value) || 1))}
-                                        className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white font-mono font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                        onChange={(e) => setPortsPerPhase(e.target.value)}
+                                        onFocus={(e) => {
+                                            e.target.readOnly = false;
+                                            e.target.select(); // Selecionar tudo ao focar
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.readOnly = true;
+                                            // Validação ao sair: mínimo 1
+                                            const num = parseInt(e.target.value);
+                                            if (isNaN(num) || num < 1) {
+                                                setPortsPerPhase('1');
+                                            }
+                                        }}
+                                        readOnly
+                                        className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white font-mono font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold pointer-events-none">
                                         UN

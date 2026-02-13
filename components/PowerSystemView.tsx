@@ -26,7 +26,7 @@ export const PowerSystemView: React.FC = () => {
             { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
             { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
         ],
-        autoBalance: false
+        autoBalance: true
     });
 
     const [showGeneratorModal, setShowGeneratorModal] = useState(false);
@@ -166,6 +166,18 @@ export const PowerSystemView: React.FC = () => {
 
         if (sourcePhaseIdx === -1 || targetPhaseIdx === -1 || sourcePhaseIdx === targetPhaseIdx) return;
 
+        // VALIDAÇÃO DE CAPACIDADE
+        const targetPhase = mainpowerConfig.phases[targetPhaseIdx];
+        const numPhases = mainpowerConfig.phases.length;
+        const maxCircuitsPerPhase = Math.floor(mainpowerConfig.totalPorts / numPhases);
+
+        // Verificar se a fase de destino já está cheia
+        const currentCircuits = targetPhase.ports.length;
+        if (currentCircuits >= maxCircuitsPerPhase) {
+            error(`Fase ${targetPhaseId} está cheia! Limite: ${maxCircuitsPerPhase} circuitos por fase.`);
+            return; // CANCELAR operação
+        }
+
         // Clonar configuração
         const newPhases = [...mainpowerConfig.phases];
 
@@ -187,6 +199,7 @@ export const PowerSystemView: React.FC = () => {
         const updatedConfig = updatePhaseLoads(tempConfig, allPorts, selectedProject?.voltageSystem || 220);
 
         setMainpowerConfig(updatedConfig);
+        success(`Circuito movido para Fase ${targetPhaseId}`);
     };
 
     const handleGeneratorChange = (config: GeneratorConfig) => {
@@ -514,7 +527,7 @@ export const PowerSystemView: React.FC = () => {
                                                 : 'bg-slate-700 text-slate-400 hover:text-white'
                                                 }`}
                                         >
-                                            AUTO {mainpowerConfig.autoBalance ? 'ON' : 'OFF'}
+                                            {mainpowerConfig.autoBalance ? 'AUTO BALANCEAR ON' : 'AUTO BALANCEAR OFF'}
                                         </button>
                                         <button
                                             onClick={applyAutoBalance}

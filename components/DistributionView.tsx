@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient'; // Make sure supabase is imported
-import { FolderKanban, Plus, Save, Trash2, Zap, Settings, X, AlertTriangle, ShieldCheck, Flame, LayoutGrid, Edit2, Wrench, RotateCcw, Search, Download } from 'lucide-react';
+import { FolderKanban, Plus, Save, Trash2, Zap, Settings, X, AlertTriangle, ShieldCheck, Flame, LayoutGrid, Edit2, Wrench, RotateCcw, Search, Download, Cable, Plug } from 'lucide-react';
 import { Equipment, Port, DistributionProject, GeneratorConfig, MainpowerConfig } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
@@ -11,6 +11,7 @@ import { QuantityInput } from './QuantityInput';
 import { MoveOrCopyModal } from './MoveOrCopyModal';
 import { PowerConfigPanel } from './PowerConfigPanel';
 import { balancePhases, updatePhaseLoads } from '../services/phaseBalancing';
+import { getCableSpecs, getCableColorClass } from '../utils/cableCalculations';
 
 const STORAGE_KEY = 'lightload_distribution_state';
 
@@ -80,7 +81,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
          { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
          { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
       ],
-      autoBalance: false
+      autoBalance: true
    });
 
    const { success, error, info } = useToast();
@@ -681,6 +682,9 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                   const totals = getPortTotals(port);
                   const loadPercent = port.breakerAmps > 0 ? (totals.amps / port.breakerAmps) * 100 : 0;
 
+                  // Cable specifications
+                  const cableSpecs = getCableSpecs(totals.amps);
+
                   // Status Logic
                   let status = { color: 'emerald', text: 'SEGURO', icon: ShieldCheck };
                   if (loadPercent > 100) status = { color: 'red', text: 'SOBRECARGA', icon: Flame };
@@ -731,8 +735,25 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                               </div>
                            </div>
 
-                           <div className="flex items-center gap-2 text-xs text-slate-400 mb-3 font-mono">
+                           <div className="flex items-center gap-2 text-xs text-slate-400 mb-2 font-mono">
                               <Zap className="w-3 h-3 text-slate-500" /> Disjuntor: <span className="text-white bg-slate-700 px-1.5 rounded">{port.breakerAmps}A</span>
+                           </div>
+
+                           {/* Cable Specs */}
+                           <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div className="flex items-center gap-1.5 text-xs">
+                                 <Cable className="w-3 h-3 text-slate-500 shrink-0" />
+                                 <span className="text-slate-500 text-[10px]">Cabo:</span>
+                                 <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-xs ${getCableColorClass(cableSpecs.color)}`}>
+                                    {cableSpecs.gauge}mm²
+                                 </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs">
+                                 <Plug className="w-3 h-3 text-slate-500 shrink-0" />
+                                 <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${getCableColorClass(cableSpecs.color)} truncate`} title={cableSpecs.connectorType}>
+                                    {cableSpecs.connectorAmps}A
+                                 </span>
+                              </div>
                            </div>
 
                            {/* Alert Status Box */}
@@ -922,7 +943,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                                  type="button"
                                  key={c.value}
                                  onClick={() => setPortFormData({ ...portFormData, color: c.value })}
-                                 className={`w - 8 h - 8 rounded - full border - 2 transition - transform hover: scale - 110 ${c.bg} ${portFormData.color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'} `}
+                                 className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${c.bg} ${portFormData.color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'}`}
                                  title={c.label}
                               />
                            ))}

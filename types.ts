@@ -126,4 +126,4 @@ export interface EquipmentAllocation {
 
 export type AnyReport = Calculation | DistributionProject | Event;
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system';
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education';

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity } from 'lucide-react';
+import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -14,6 +14,7 @@ import { LoginView } from './components/LoginView';
 import { supabase } from './services/supabaseClient';
 import { MobileDrawer } from './components/MobileDrawer';
 import { PowerSystemView } from './components/PowerSystemView';
+import { EducationView } from './components/EducationView';
 
 export default function App() {
   return (
@@ -86,11 +87,12 @@ function StatusIndicator() {
 }
 
 function MainLayout() {
-  const [session, setSession] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<ViewState>('equipments');
-  const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
+  const [currentView, setCurrentView] = useState<ViewState>('calculator'); // Default=distribution
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const { success, info } = useToast();
+  const [session, setSession] = useState<any>(null);
+  const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
+
+  const { success, error, info } = useToast();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -140,6 +142,8 @@ function MainLayout() {
     };
   }, []);
 
+
+
   // Render Login if no session
   if (!session) {
     return <LoginView onLoginSuccess={() => success('Login realizado com sucesso!')} />;
@@ -154,6 +158,7 @@ function MainLayout() {
     { id: 'distribution', label: 'Distribuição', icon: FolderKanban },
     { id: 'power-system', label: 'Elétrica', icon: Activity },
     { id: 'reports', label: 'Relatórios', icon: FileText },
+    { id: 'education', label: 'Aprenda', icon: BookOpen },
   ];
 
   const renderView = () => {
@@ -212,6 +217,8 @@ function MainLayout() {
             />
           </div>
         );
+      case 'education':
+        return <div className="animate-fade-in"><EducationView /></div>;
       default:
         return <EquipmentsView />;
     }

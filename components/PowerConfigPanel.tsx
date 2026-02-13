@@ -134,7 +134,7 @@ export const PowerConfigPanel: React.FC<PowerConfigPanelProps> = ({
                                 }`}
                         >
                             <TrendingUp className="w-4 h-4" />
-                            {mainpowerConfig.autoBalance ? 'Auto ON' : 'Auto OFF'}
+                            {mainpowerConfig.autoBalance ? 'Auto Balancear ON' : 'Auto Balancear OFF'}
                         </button>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+import { getCableSpecs } from '../utils/cableCalculations';
 
 export const ExportService = {
     /**
@@ -59,6 +60,8 @@ export const ExportService = {
                 Detalhe: `${project.generatorConfig.isThreePhase ? 'Trifásico' : 'Monofásico'} - ${project.generatorConfig.voltage}V`,
                 Circuito: '',
                 Disjuntor: '',
+                Cabo_mm2: '',
+                Conector: '',
                 Equipamento: '',
                 Qtd: '',
                 Watts_Unit: '',
@@ -77,6 +80,8 @@ export const ExportService = {
                 Detalhe: `${project.mainpowerConfig.totalPorts} portas - ${project.mainpowerConfig.phases.length} fase(s)`,
                 Circuito: '',
                 Disjuntor: '',
+                Cabo_mm2: '',
+                Conector: '',
                 Equipamento: '',
                 Qtd: '',
                 Watts_Unit: '',
@@ -92,6 +97,8 @@ export const ExportService = {
                     Detalhe: `${phase.ports.length} circuito(s)`,
                     Circuito: '',
                     Disjuntor: '',
+                    Cabo_mm2: '',
+                    Conector: '',
                     Equipamento: '',
                     Qtd: '',
                     Watts_Unit: '',
@@ -107,6 +114,8 @@ export const ExportService = {
                 Detalhe: '',
                 Circuito: '',
                 Disjuntor: '',
+                Cabo_mm2: '',
+                Conector: '',
                 Equipamento: '',
                 Qtd: '',
                 Watts_Unit: '',
@@ -117,6 +126,15 @@ export const ExportService = {
 
         // Adicionar circuitos
         project.ports.forEach((port: any) => {
+            // Calculate port amperage for cable specs
+            let portAmps = 0;
+            port.items.forEach((item: any) => {
+                const totalWatts = item.quantity * item.equipment.watts;
+                portAmps += totalWatts / (project.voltageSystem * (item.equipment.powerFactor || 1));
+            });
+
+            const cableSpecs = getCableSpecs(portAmps);
+
             if (port.items.length === 0) {
                 rows.push({
                     Secao: 'CIRCUITO',
@@ -124,6 +142,8 @@ export const ExportService = {
                     Detalhe: '',
                     Circuito: port.name,
                     Disjuntor: `${port.breakerAmps}A`,
+                    Cabo_mm2: `${cableSpecs.gauge}mm²`,
+                    Conector: cableSpecs.connectorType,
                     Equipamento: '(Vazio)',
                     Qtd: 0,
                     Watts_Unit: 0,
@@ -131,7 +151,7 @@ export const ExportService = {
                     Corrente: 0
                 });
             } else {
-                port.items.forEach((item: any) => {
+                port.items.forEach((item: any, index: number) => {
                     const totalWatts = item.quantity * item.equipment.watts;
                     // Estimate amps (simplified)
                     const amps = totalWatts / (project.voltageSystem * (item.equipment.powerFactor || 1));
@@ -142,6 +162,8 @@ export const ExportService = {
                         Detalhe: '',
                         Circuito: port.name,
                         Disjuntor: `${port.breakerAmps}A`,
+                        Cabo_mm2: index === 0 ? `${cableSpecs.gauge}mm²` : '', // Only show on first item
+                        Conector: index === 0 ? cableSpecs.connectorType : '', // Only show on first item
                         Equipamento: item.equipment.name,
                         Qtd: item.quantity,
                         Watts_Unit: item.equipment.watts,
