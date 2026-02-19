@@ -12,6 +12,8 @@ import { MoveOrCopyModal } from './MoveOrCopyModal';
 import { PowerConfigPanel } from './PowerConfigPanel';
 import { balancePhases, updatePhaseLoads } from '../services/phaseBalancing';
 import { getCableSpecs, getCableColorClass } from '../utils/cableCalculations';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 const STORAGE_KEY = 'lightload_distribution_state';
 
@@ -36,6 +38,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
    const [ports, setPorts] = useState<Port[]>([]);
    const [projectName, setProjectName] = useState('');
    const isFirstRender = React.useRef(true);
+   const [loading, setLoading] = useState(true);
+   const [errorState, setErrorState] = useState<string | null>(null);
 
    // Modal de Adicionar Item
    const [activePortId, setActivePortId] = useState<string | null>(null);
@@ -45,11 +49,11 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
    // Modal de Criar/Editar Circuito
    const [isPortModalOpen, setIsPortModalOpen] = useState(false);
    const [editingPortId, setEditingPortId] = useState<string | null>(null);
-   const [portFormData, setPortFormData] = useState({ name: '', abbr: '', amps: 32, color: PORT_COLORS[7].value });
+   const [portFormData, setPortFormData] = useState<{ name: string; abbr: string; amps: number | string; color: string; description: string }>({ name: '', abbr: '', amps: 32, color: PORT_COLORS[7].value, description: '' });
 
    // Modal de Configuração Rápida (Bulk)
    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-   const [bulkData, setBulkData] = useState({ quantity: 6, amps: 32, prefix: 'Dimmer' });
+   const [bulkData, setBulkData] = useState<{ quantity: number | string, amps: number | string, prefix: string }>({ quantity: 6, amps: 32, prefix: 'Dimmer' });
 
    // Modal de Salvar
    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -88,8 +92,22 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
    const { confirm, ConfirmModalComponent } = useConfirm();
 
    useEffect(() => {
-      DataService.getEquipments().then(setEquipments);
+      loadInitialData();
    }, []);
+
+   const loadInitialData = async () => {
+      try {
+         setLoading(true);
+         setErrorState(null);
+         const data = await DataService.getEquipments();
+         setEquipments(data);
+      } catch (err) {
+         console.error('Error loading equipments:', err);
+         setErrorState('Falha ao carregar dados iniciais.');
+      } finally {
+         setLoading(false);
+      }
+   };
 
    // Load Initial Project (Edit Mode)
    useEffect(() => {
@@ -207,7 +225,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                   name: portFormData.name,
                   abbreviation: portFormData.abbr.toUpperCase().slice(0, 5),
                   color: portFormData.color,
-                  breakerAmps: Number(portFormData.amps)
+                  breakerAmps: Number(portFormData.amps),
+                  description: portFormData.description
                };
             }
             return p;
@@ -221,6 +240,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
             abbreviation: portFormData.abbr.toUpperCase().slice(0, 5),
             color: portFormData.color,
             breakerAmps: Number(portFormData.amps),
+            description: portFormData.description,
             items: []
          };
          setPorts([...ports, newPort]);
@@ -228,13 +248,14 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
       }
 
       setIsPortModalOpen(false);
+      setIsPortModalOpen(false);
       setEditingPortId(null);
-      setPortFormData({ name: '', abbr: '', amps: 32, color: PORT_COLORS[7].value });
+      setPortFormData({ name: '', abbr: '', amps: 32, color: PORT_COLORS[7].value, description: '' });
    };
 
    const openNewPortModal = () => {
       setEditingPortId(null);
-      setPortFormData({ name: '', abbr: '', amps: 32, color: PORT_COLORS[Math.floor(Math.random() * PORT_COLORS.length)].value });
+      setPortFormData({ name: '', abbr: '', amps: 32, color: PORT_COLORS[Math.floor(Math.random() * PORT_COLORS.length)].value, description: '' });
       setIsPortModalOpen(true);
    };
 
@@ -244,7 +265,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
          name: port.name,
          abbr: port.abbreviation,
          amps: port.breakerAmps,
-         color: port.color
+         color: port.color,
+         description: port.description || ''
       });
       setIsPortModalOpen(true);
    };
@@ -569,6 +591,10 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
 
    // --- RENDER ---
 
+   if (loading) return <LoadingScreen />;
+
+   if (errorState) return <ErrorScreen message={errorState} onRetry={loadInitialData} />;
+
    return (
       <div className="animate-fade-in pb-20 relative">
          <ConfirmModalComponent />
@@ -735,6 +761,12 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                               </div>
                            </div>
 
+                           {port.description && (
+                              <div className="mb-2 text-xs text-slate-400 bg-slate-800/50 p-2 rounded border border-slate-700/50 italic">
+                                 {port.description}
+                              </div>
+                           )}
+
                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-2 font-mono">
                               <Zap className="w-3 h-3 text-slate-500" /> Disjuntor: <span className="text-white bg-slate-700 px-1.5 rounded">{port.breakerAmps}A</span>
                            </div>
@@ -868,9 +900,9 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                      </div>
                      <div>
                         <label className="block text-sm text-slate-400 mb-1">Quantidade</label>
-                        <input required type="number" min="1" max="50" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
+                        <input required type="number" inputMode="numeric" pattern="[0-9]*" min="1" max="50" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
                            value={bulkData.quantity}
-                           onChange={e => setBulkData({ ...bulkData, quantity: Number(e.target.value) })}
+                           onChange={e => setBulkData({ ...bulkData, quantity: e.target.value })}
                         />
                      </div>
                      <div>
@@ -883,9 +915,9 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                      </div>
                      <div>
                         <label className="block text-sm text-slate-400 mb-1">Amperagem Padrão (A)</label>
-                        <input required type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
+                        <input required type="number" inputMode="numeric" pattern="[0-9]*" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
                            value={bulkData.amps}
-                           onChange={e => setBulkData({ ...bulkData, amps: Number(e.target.value) })}
+                           onChange={e => setBulkData({ ...bulkData, amps: e.target.value })}
                         />
                      </div>
 
@@ -910,7 +942,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                   <form onSubmit={handleSavePort} className="p-6 space-y-4">
                      <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Circuito</label>
-                        <input required autoFocus className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-slate-600"
+                        <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-slate-600"
                            placeholder="Ex: Dimmer 1, Palco, Som"
                            value={portFormData.name}
                            onChange={e => setPortFormData({ ...portFormData, name: e.target.value })}
@@ -927,12 +959,22 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                         </div>
                         <div>
                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Disjuntor (A)</label>
-                           <input required type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-purple-500 outline-none font-mono transition-colors"
+                           <input required type="number" inputMode="numeric" pattern="[0-9]*" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-purple-500 outline-none font-mono transition-colors"
                               placeholder="32"
                               value={portFormData.amps}
-                              onChange={e => setPortFormData({ ...portFormData, amps: Number(e.target.value) })}
+                              onChange={e => setPortFormData({ ...portFormData, amps: e.target.value })}
                            />
                         </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Descrição / Aparelhos e Cargas</label>
+                        <textarea
+                           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-slate-600 resize-none h-20"
+                           placeholder="Ex: 4x Moving Beam, 2x Par LED..."
+                           value={portFormData.description}
+                           onChange={e => setPortFormData({ ...portFormData, description: e.target.value })}
+                        />
                      </div>
 
                      <div>
@@ -973,7 +1015,8 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                      <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                         <input
-                           autoFocus
+
+
                            className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 outline-none"
                            placeholder="Buscar equipamento..."
                            value={searchQuery}
@@ -1025,7 +1068,7 @@ export const DistributionView: React.FC<{ initialProject?: DistributionProject |
                         <div>
                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Projeto / Evento</label>
                            <input
-                              autoFocus
+
                               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-slate-600"
                               value={projectName}
                               onChange={(e) => setProjectName(e.target.value)}

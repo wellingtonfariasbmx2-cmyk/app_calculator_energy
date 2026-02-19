@@ -238,7 +238,8 @@ export const MainpowerConfigModal: React.FC<MainpowerConfigModalProps> = ({
                                 <div className="relative">
                                     <input
                                         type="number"
-                                        inputMode="decimal"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         min={0}
                                         max={24}
                                         value={portsPerPhase}

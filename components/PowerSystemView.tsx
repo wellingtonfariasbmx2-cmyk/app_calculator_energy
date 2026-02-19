@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Power, Activity, FolderOpen, AlertCircle, Cable, ChevronDown, RotateCcw, RefreshCw } from 'lucide-react';
+import { Zap, Power, Activity, FolderOpen, AlertCircle, Cable, ChevronDown, RotateCcw, RefreshCw, Maximize2 } from 'lucide-react';
 import { GeneratorConfig, MainpowerConfig, DistributionProject, Port } from '../types';
 import { GeneratorConfigModal } from './GeneratorConfigModal';
 import { MainpowerConfigModal } from './MainpowerConfigModal';
@@ -8,8 +8,12 @@ import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
 import { useConfirm } from './ConfirmModal';
 import { balancePhases, updatePhaseLoads } from '../services/phaseBalancing';
+import { PresentationMode } from './PresentationMode';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 export const PowerSystemView: React.FC = () => {
+    const [presentationMode, setPresentationMode] = useState(false);
     const [generatorConfig, setGeneratorConfig] = useState<GeneratorConfig>({
         enabled: false,
         powerKVA: 180,
@@ -34,6 +38,8 @@ export const PowerSystemView: React.FC = () => {
     const [savedProjects, setSavedProjects] = useState<DistributionProject[]>([]);
     const [selectedProject, setSelectedProject] = useState<DistributionProject | null>(null);
     const [allPorts, setAllPorts] = useState<Port[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [errorState, setErrorState] = useState<string | null>(null);
 
     const { success, error, info } = useToast();
     const { confirm: confirmAction, ConfirmModalComponent } = useConfirm();
@@ -45,6 +51,8 @@ export const PowerSystemView: React.FC = () => {
 
     const loadProjects = async () => {
         try {
+            setLoading(true);
+            setErrorState(null);
             const reports = await DataService.getReports();
             const distProjects = reports.filter(r => r.type === 'distribution') as DistributionProject[];
             setSavedProjects(distProjects);
@@ -59,6 +67,10 @@ export const PowerSystemView: React.FC = () => {
             }
         } catch (err) {
             console.error('Erro ao carregar projetos:', err);
+            setErrorState('Falha ao carregar projetos.');
+            error('Erro ao carregar projetos.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -329,6 +341,10 @@ export const PowerSystemView: React.FC = () => {
         }
     };
 
+    if (loading) return <LoadingScreen />;
+
+    if (errorState) return <ErrorScreen message={errorState} onRetry={loadProjects} />;
+
     return (
         <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6 pb-20">
             <ConfirmModalComponent />
@@ -536,6 +552,15 @@ export const PowerSystemView: React.FC = () => {
                                         >
                                             <RefreshCw className="w-4 h-4" />
                                         </button>
+                                        {/* MODO APRESENTAÇÃO - FEATURE FUTURA (SALVO MAS OCULTO)
+                                        <button
+                                            onClick={() => setPresentationMode(true)}
+                                            className="p-1.5 rounded bg-slate-700 text-slate-300 hover:bg-indigo-600 hover:text-white transition-colors"
+                                            title="Modo Apresentação (Tela Cheia)"
+                                        >
+                                            <Maximize2 className="w-4 h-4" />
+                                        </button>
+                                        */}
                                     </div>
                                 </div>
                             </div>
@@ -578,6 +603,14 @@ export const PowerSystemView: React.FC = () => {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* MODO APRESENTAÇÃO / MONITORAMENTO */}
+            {presentationMode && (
+                <PresentationMode
+                    config={mainpowerConfig}
+                    onClose={() => setPresentationMode(false)}
+                />
             )}
         </div>
     );

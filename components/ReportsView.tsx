@@ -9,10 +9,14 @@ import { ExportService } from '../services/ExportService';
 import { isCompatible } from '../services/utils';
 import { useConfirm } from './ConfirmModal';
 import { getCableSpecs, getCableColorClass } from '../utils/cableCalculations';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 export const ReportsView: React.FC<{ onEditDistribution?: (project: DistributionProject) => void }> = ({ onEditDistribution }) => {
     const [reports, setReports] = useState<AnyReport[]>([]);
     const [viewingReport, setViewingReport] = useState<AnyReport | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [errorState, setErrorState] = useState<string | null>(null);
 
     const { success, error } = useToast();
     const { confirm, ConfirmModalComponent } = useConfirm();
@@ -22,9 +26,19 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
     }, []);
 
     const loadData = async () => {
-        const data = await DataService.getReports();
-        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setReports(data);
+        try {
+            setLoading(true);
+            setErrorState(null);
+            const data = await DataService.getReports();
+            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setReports(data);
+        } catch (err) {
+            console.error('Error loading reports:', err);
+            setErrorState('Falha ao carregar relatórios.');
+            error('Erro ao carregar relatórios.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleDelete = async (id: string, e?: React.MouseEvent) => {
@@ -446,6 +460,10 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
         const amps = safeVoltage > 0 ? va / safeVoltage : 0;
         return { w, va, amps };
     };
+
+    if (loading) return <LoadingScreen />;
+
+    if (errorState) return <ErrorScreen message={errorState} onRetry={loadData} />;
 
     return (
         <div className="animate-fade-in pb-20">

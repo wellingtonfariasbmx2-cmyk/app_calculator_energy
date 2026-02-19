@@ -91,6 +91,8 @@ export const GeneratorConfigModal: React.FC<GeneratorConfigModalProps> = ({
                                 </label>
                                 <input
                                     type="number"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={config.powerKVA}
                                     onChange={(e) => setConfig({ ...config, powerKVA: Number(e.target.value) })}
                                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
@@ -111,8 +113,8 @@ export const GeneratorConfigModal: React.FC<GeneratorConfigModalProps> = ({
                                     <button
                                         onClick={() => setConfig({ ...config, isThreePhase: false })}
                                         className={`p-4 rounded-lg border-2 transition-all ${!config.isThreePhase
-                                                ? 'border-yellow-500 bg-yellow-500/10'
-                                                : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500'
+                                            ? 'border-yellow-500 bg-yellow-500/10'
+                                            : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500'
                                             }`}
                                     >
                                         <div className="text-center">
@@ -127,8 +129,8 @@ export const GeneratorConfigModal: React.FC<GeneratorConfigModalProps> = ({
                                     <button
                                         onClick={() => setConfig({ ...config, isThreePhase: true })}
                                         className={`p-4 rounded-lg border-2 transition-all ${config.isThreePhase
-                                                ? 'border-yellow-500 bg-yellow-500/10'
-                                                : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500'
+                                            ? 'border-yellow-500 bg-yellow-500/10'
+                                            : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500'
                                             }`}
                                     >
                                         <div className="text-center">

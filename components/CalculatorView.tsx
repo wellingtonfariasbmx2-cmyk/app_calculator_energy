@@ -309,7 +309,7 @@ export const CalculatorView: React.FC = () => {
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-yellow-500" /> Configuração da Rede Elétrica
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Tensão da Rede</label>
             <div className="relative">
@@ -329,27 +329,13 @@ export const CalculatorView: React.FC = () => {
               </div>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Fases</label>
-            <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-              <button
-                onClick={() => setPhases(1)}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${phases === 1 ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-              >
-                Monofásico
-              </button>
-              <button
-                onClick={() => setPhases(3)}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${phases === 3 ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-              >
-                Trifásico
-              </button>
-            </div>
-          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Disjuntor Disponível (A)</label>
             <input
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="Ex: 63"
               value={circuitBreaker}
               onChange={(e) => setCircuitBreaker(e.target.value)}
@@ -421,53 +407,7 @@ export const CalculatorView: React.FC = () => {
           </div>
 
           <div className="bg-surface border border-slate-700/50 rounded-xl min-h-[500px] p-1 flex flex-col relative overflow-hidden shadow-inner bg-slate-900/20">
-            {isAdding && (
-              <div className="absolute inset-0 z-20 bg-surface flex flex-col animate-slide-in-up">
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/80 backdrop-blur-sm">
-                  <span className="font-bold text-white flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-emerald-500" /> Adicionar Item
-                  </span>
-                  <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-colors"><X className="w-6 h-6" /></button>
-                </div>
 
-                <div className="p-3 border-b border-slate-700 bg-slate-900/50">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input
-                      autoFocus
-                      className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder:text-slate-500 focus:border-emerald-500 outline-none"
-                      placeholder="Buscar por nome ou marca..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-y-auto p-2 space-y-2 flex-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
-                  {filteredEquipmentsToAdd.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <p>Nenhum equipamento encontrado.</p>
-                    </div>
-                  ) : (
-                    filteredEquipmentsToAdd.map(eq => (
-                      <button
-                        key={eq.id}
-                        onClick={() => addItem(eq)}
-                        className="w-full text-left p-3 bg-slate-800/40 hover:bg-slate-700 border border-transparent hover:border-slate-600 rounded-lg flex items-center justify-between group transition-all"
-                      >
-                        <div>
-                          <div className="text-white font-bold group-hover:text-emerald-400 transition-colors">{eq.name}</div>
-                          <div className="text-xs text-slate-400">{eq.watts}W • {eq.voltage}V • FP {eq.powerFactor}</div>
-                        </div>
-                        <div className="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-all text-emerald-500">
-                          <Plus className="w-4 h-4" />
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
 
             {selectedItems.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-12">
@@ -692,7 +632,6 @@ export const CalculatorView: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Evento/Local</label>
                   <input
-                    autoFocus
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-emerald-500 outline-none"
                     value={saveName}
                     onChange={(e) => setSaveName(e.target.value)}
@@ -731,6 +670,55 @@ export const CalculatorView: React.FC = () => {
         </div>
       )}
 
+      {/* NEW ADD ITEM MODAL */}
+      {isAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh] my-auto">
+            <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-xl shrink-0">
+              <span className="font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-emerald-500" /> Adicionar Item
+              </span>
+              <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="p-3 border-b border-slate-700 bg-slate-900/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder:text-slate-500 focus:border-emerald-500 outline-none"
+                  placeholder="Buscar por nome ou marca..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto p-2 space-y-2 flex-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
+              {filteredEquipmentsToAdd.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <p>Nenhum equipamento encontrado.</p>
+                </div>
+              ) : (
+                filteredEquipmentsToAdd.map(eq => (
+                  <button
+                    key={eq.id}
+                    onClick={() => addItem(eq)}
+                    className="w-full text-left p-3.5 bg-slate-800/40 hover:bg-slate-700 rounded-lg flex items-center justify-between group transition-colors border border-transparent hover:border-slate-600 active:bg-slate-700/80"
+                  >
+                    <div>
+                      <div className="text-white font-bold group-hover:text-emerald-400 transition-colors">{eq.name}</div>
+                      <div className="text-xs text-slate-400 font-mono mt-0.5">{eq.watts}W • {eq.voltage}V • FP {eq.powerFactor}</div>
+                    </div>
+                    <div className="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-all text-emerald-500">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

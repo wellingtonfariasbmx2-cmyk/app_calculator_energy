@@ -90,6 +90,7 @@ function MainLayout() {
   const [currentView, setCurrentView] = useState<ViewState>('calculator'); // Default=distribution
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
 
   const { success, error, info } = useToast();
@@ -103,6 +104,7 @@ function MainLayout() {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -110,6 +112,7 @@ function MainLayout() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -143,6 +146,13 @@ function MainLayout() {
   }, []);
 
 
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   // Render Login if no session
   if (!session) {

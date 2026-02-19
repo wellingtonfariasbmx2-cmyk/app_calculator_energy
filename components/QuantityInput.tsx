@@ -73,6 +73,8 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
             <input
                 ref={inputRef}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onBlur={handleBlur}

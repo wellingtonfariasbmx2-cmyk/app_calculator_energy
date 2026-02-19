@@ -68,6 +68,7 @@ export interface Port {
   abbreviation: string; // "DIM1", "AUX", "PA"
   color: string; // Hex color for UI tagging
   breakerAmps: number; // Capacidade do disjuntor desta porta
+  description?: string; // Informação sobre os aparelhos/carga
   items: CalculationItem[];
 }
 

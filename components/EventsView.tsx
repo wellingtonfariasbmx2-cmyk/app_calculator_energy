@@ -6,6 +6,8 @@ import { useToast } from './Toast';
 import { EventModal } from './EventModal';
 import { EventDetailView } from './EventDetailView';
 import { useConfirm } from './ConfirmModal';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 interface EventsViewProps {
     onNavigateToDistribution?: (eventId: string) => void;
@@ -14,6 +16,7 @@ interface EventsViewProps {
 export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setErrorState] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'planned' | 'in_progress' | 'completed' | 'cancelled'>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -29,10 +32,12 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     const loadEvents = async () => {
         try {
             setLoading(true);
+            setErrorState(null);
             const data = await EventService.getEvents();
             setEvents(data);
         } catch (err) {
             console.error('Error loading events:', err);
+            setErrorState('Falha ao carregar eventos.');
             showError('Erro ao carregar eventos');
         } finally {
             setLoading(false);
@@ -143,6 +148,10 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
         const date = new Date(dateStr);
         return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
     };
+
+    if (loading && !selectedEventId) return <LoadingScreen />;
+
+    if (error && !selectedEventId) return <ErrorScreen message={error} onRetry={loadEvents} />;
 
     return (
         <div className="animate-fade-in pb-20">

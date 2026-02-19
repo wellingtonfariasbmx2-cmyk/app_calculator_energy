@@ -3,6 +3,8 @@ import { Package, AlertTriangle, CheckCircle, TrendingDown, Search, X } from 'lu
 import { Equipment } from '../types';
 import { DataService } from '../services/supabaseClient';
 import { EventService } from '../services/EventService';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 interface EquipmentWithAvailability extends Equipment {
     quantityAvailable: number;
@@ -12,8 +14,8 @@ interface EquipmentWithAvailability extends Equipment {
 
 export const EquipmentAvailabilityPanel: React.FC = () => {
     const [equipments, setEquipments] = useState<EquipmentWithAvailability[]>([]);
-    // Iniciar com loading=false para mostrar "0" em vez de números vermelhos
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'low' | 'unavailable'>('all');
 
@@ -27,6 +29,7 @@ export const EquipmentAvailabilityPanel: React.FC = () => {
     const loadAvailability = async () => {
         try {
             setLoading(true);
+            setError(null);
 
             // Buscar equipamentos e disponibilidades em paralelo
             const [allEquipments, availabilityMap] = await Promise.all([
@@ -53,6 +56,7 @@ export const EquipmentAvailabilityPanel: React.FC = () => {
             setEquipments(withAvailability);
         } catch (err) {
             console.error('Error loading availability:', err);
+            setError('Erro ao carregar disponibilidade. Tente novamente.');
         } finally {
             setLoading(false);
         }
@@ -173,10 +177,9 @@ export const EquipmentAvailabilityPanel: React.FC = () => {
             {/* Equipment List */}
             <div className="space-y-3">
                 {loading ? (
-                    <div className="text-center py-12 text-slate-500">
-                        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-                        <p>Carregando disponibilidade...</p>
-                    </div>
+                    <LoadingScreen />
+                ) : error ? (
+                    <ErrorScreen message={error} onRetry={loadAvailability} />
                 ) : filteredEquipments.length === 0 ? (
                     <div className="text-center py-12 text-slate-500 bg-surface/30 rounded-xl border border-dashed border-slate-800">
                         <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />

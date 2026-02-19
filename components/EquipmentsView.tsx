@@ -5,11 +5,15 @@ import { DataService } from '../services/supabaseClient';
 import { useToast } from './Toast';
 import { ExportService } from '../services/ExportService';
 import { useConfirm } from './ConfirmModal';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 export const EquipmentsView: React.FC = () => {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Equipment>>({});
+  const [loading, setLoading] = useState(true);
+  const [errorState, setErrorState] = useState<string | null>(null);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,8 +27,18 @@ export const EquipmentsView: React.FC = () => {
   }, []);
 
   const loadData = async () => {
-    const data = await DataService.getEquipments();
-    setEquipments(data);
+    try {
+      setLoading(true);
+      setErrorState(null);
+      const data = await DataService.getEquipments();
+      setEquipments(data);
+    } catch (err) {
+      console.error('Error loading equipments:', err);
+      setErrorState('Falha ao carregar equipamentos.');
+      error('Erro ao carregar equipamentos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredEquipments = useMemo(() => {
@@ -129,6 +143,10 @@ export const EquipmentsView: React.FC = () => {
   const formatNum = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
   const categories = ['Moving Head', 'Par Led', 'Blinder', 'Strobo', 'Console', 'Outros'];
+
+  if (loading) return <LoadingScreen />;
+
+  if (errorState) return <ErrorScreen message={errorState} onRetry={loadData} />;
 
   return (
     <div className="animate-fade-in pb-20 relative">
@@ -318,7 +336,6 @@ export const EquipmentsView: React.FC = () => {
                   value={editingItem.name}
                   onChange={e => handleFieldChange('name', e.target.value)}
                   placeholder="Ex: Sharpy Plus, MA3 Light..."
-                  autoFocus
                 />
               </div>
 
@@ -360,6 +377,8 @@ export const EquipmentsView: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Estoque (Qtd)</label>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none"
                     value={editingItem.quantityOwned === 0 ? '' : editingItem.quantityOwned}
                     onChange={e => handleFieldChange('quantityOwned', e.target.value === '' ? 0 : parseInt(e.target.value))}
@@ -376,7 +395,7 @@ export const EquipmentsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 md:col-span-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Potência (W)</label>
-                  <input type="number" step="0.1" required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                  <input type="number" inputMode="decimal" step="0.1" required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
                     value={editingItem.watts === 0 ? '' : editingItem.watts}
                     onChange={e => handleFieldChange('watts', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                   />
@@ -400,7 +419,7 @@ export const EquipmentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Fator de Pot.</label>
-                  <input type="number" step="0.01" max="1" min="0" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                  <input type="number" inputMode="decimal" step="0.01" max="1" min="0" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
                     value={editingItem.powerFactor}
                     onChange={e => handleFieldChange('powerFactor', parseFloat(e.target.value))}
                   />
