@@ -1,0 +1,22 @@
+
+{
+  "short_name": "LightLoad",
+  "name": "LightLoad Pro",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/427/427735.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/427/427735.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0B1121",
+  "background_color": "#0B1121",
+  "orientation": "portrait"
+}

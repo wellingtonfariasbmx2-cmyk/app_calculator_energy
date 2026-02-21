@@ -186,5 +186,187 @@ export const ExportService = {
             Voltagem: `${item.equipment.voltage}V`
         }));
         ExportService.exportToCSV(rows, filename);
+    },
+
+    /**
+     * Gera um PDF profissional com relatório completo do evento
+     */
+    exportEventPDF: async (event: any) => {
+        const { default: jsPDF } = await import('jspdf');
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        let y = 15;
+
+        const formatDatePT = (dateStr: string) => {
+            if (!dateStr) return '—';
+            // Garantir que pegamos apenas a parte da data YYYY-MM-DD
+            const datePart = dateStr.split('T')[0].split(' ')[0];
+            const d = new Date(datePart + 'T12:00:00');
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        };
+
+        const statusLabels: Record<string, string> = {
+            planned: 'Planejado', in_progress: 'Em Andamento',
+            completed: 'Concluído', cancelled: 'Cancelado'
+        };
+
+        // ===== HEADER =====
+        doc.setFillColor(88, 28, 135); // purple-900
+        doc.rect(0, 0, pageWidth, 35, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RELATÓRIO DO EVENTO', margin, 18);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 28);
+        doc.text('LightLoad PRO', pageWidth - margin, 28, { align: 'right' });
+        y = 45;
+
+        // ===== EVENT NAME & STATUS =====
+        doc.setTextColor(30, 30, 30);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(event.name || 'Sem nome', margin, y);
+        y += 8;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Status: ${statusLabels[event.status] || event.status}`, margin, y);
+        y += 10;
+
+        // ===== EVENT INFO =====
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(88, 28, 135);
+        doc.text('INFORMAÇÕES DO EVENTO', margin, y);
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont('helvetica', 'normal');
+
+        const infoFields = [
+            { label: 'Cliente', value: event.clientName },
+            { label: 'Local', value: event.venue },
+            { label: 'Endereço', value: event.address },
+            { label: 'Data Início', value: formatDatePT(event.startDate) },
+            { label: 'Data Término', value: formatDatePT(event.endDate) },
+            { label: 'Horário Montagem', value: event.setupTime },
+            { label: 'Horário Evento', value: event.eventTime },
+            { label: 'Responsável Técnico', value: event.technicalResponsible },
+            { label: 'Observações', value: event.notes },
+        ];
+
+        infoFields.forEach(field => {
+            if (field.value) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${field.label}:`, margin, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(String(field.value), margin + 45, y);
+                y += 6;
+            }
+        });
+        y += 5;
+
+        // ===== EQUIPMENT TABLE =====
+        const allocations = event.equipmentAllocations || [];
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(88, 28, 135);
+        doc.text(`EQUIPAMENTOS ALOCADOS (${allocations.length})`, margin, y);
+        y += 8;
+
+        if (allocations.length > 0) {
+            // Table Header
+            const colWidths = [90, 30, 30, 30];
+            const headers = ['Equipamento', 'Marca/Modelo', 'Qtd', 'Status'];
+            doc.setFillColor(245, 245, 245);
+            doc.rect(margin, y - 4, pageWidth - margin * 2, 8, 'F');
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(80, 80, 80);
+            let xPos = margin;
+            headers.forEach((h, i) => {
+                doc.text(h, xPos + 2, y);
+                xPos += colWidths[i];
+            });
+            y += 7;
+
+            // Table Rows
+            let totalItems = 0;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(40, 40, 40);
+
+            allocations.forEach((alloc: any) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                const eq = alloc.equipment;
+                totalItems += alloc.quantityAllocated;
+
+                xPos = margin;
+                const rowData = [
+                    eq?.name || '—',
+                    eq ? `${eq.brand || ''} ${eq.model || ''}`.trim() || '—' : '—',
+                    `${alloc.quantityAllocated}`,
+                    alloc.status === 'allocated' ? 'Alocado' : 'Devolvido'
+                ];
+
+                // Alternating row bg
+                doc.setDrawColor(230, 230, 230);
+                doc.line(margin, y + 2, pageWidth - margin, y + 2);
+
+                rowData.forEach((val, i) => {
+                    doc.text(val, xPos + 2, y);
+                    xPos += colWidths[i];
+                });
+                y += 7;
+            });
+
+            // Totals
+            y += 3;
+            doc.setFillColor(88, 28, 135);
+            doc.rect(margin, y - 4, pageWidth - margin * 2, 10, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('TOTAL:', margin + 2, y + 1);
+            doc.text(`${totalItems} unidade(s)`, margin + 92, y + 1);
+
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Nenhum equipamento alocado neste evento.', margin, y);
+        }
+
+        // ===== FOOTER =====
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, 285, pageWidth - margin, 285);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`LightLoad PRO • Relatório do Evento`, margin, 291);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, 291, { align: 'right' });
+        }
+
+        // Save
+        doc.save(`Evento_${(event.name || 'relatorio').replace(/\s+/g, '_')}.pdf`);
     }
 };

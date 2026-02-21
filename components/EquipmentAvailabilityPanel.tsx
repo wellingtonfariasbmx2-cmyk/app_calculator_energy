@@ -152,7 +152,7 @@ export const EquipmentAvailabilityPanel: React.FC = () => {
                             </button>
                         )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         {[
                             { key: 'all', label: 'Todos' },
                             { key: 'available', label: 'Disponíveis' },
@@ -162,7 +162,7 @@ export const EquipmentAvailabilityPanel: React.FC = () => {
                             <button
                                 key={key}
                                 onClick={() => setFilterStatus(key as any)}
-                                className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${filterStatus === key
+                                className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${filterStatus === key
                                     ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
                                     : 'bg-surface text-slate-400 hover:bg-slate-800 border border-slate-700'
                                     }`}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BookOpen, Zap, Calculator, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Droplets, Wind, Battery } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { BookOpen, Zap, Calculator, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Droplets, Wind, Battery, Search, Shield, BookMarked } from 'lucide-react';
 
 export function EducationView() {
     const [expandedSection, setExpandedSection] = useState<string | null>('intro');
@@ -9,6 +9,52 @@ export function EducationView() {
         powerFactor: 0.92,
         systemType: 'single' as 'single' | 'three-phase'
     });
+    const [safetyChecklist, setSafetyChecklist] = useState<Record<string, boolean>>({});
+    const [glossarySearch, setGlossarySearch] = useState('');
+
+    const toggleCheckItem = (key: string) => {
+        setSafetyChecklist(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const safetyItems = [
+        { key: 'aterramento', label: 'Aterramento verificado em todos os pontos', icon: '🔌' },
+        { key: 'dr', label: 'Disjuntor DR (Diferencial Residual) instalado', icon: '🛡️' },
+        { key: 'disjuntores', label: 'Disjuntores dimensionados corretamente', icon: '⚡' },
+        { key: 'cabos', label: 'Cabos com seção adequada para a carga', icon: '🔗' },
+        { key: 'emendas', label: 'Sem emendas expostas ou fita isolante precária', icon: '🚫' },
+        { key: 'umidade', label: 'Cabos protegidos contra umidade/chuva', icon: '💧' },
+        { key: 'sinalizacao', label: 'Quadro elétrico sinalizado e identificado', icon: '🏷️' },
+        { key: 'extintor', label: 'Extintor de incêndio classe C próximo', icon: '🧯' },
+        { key: 'profissional', label: 'Eletricista qualificado presente na montagem', icon: '👷' },
+        { key: 'teste', label: 'Teste de todos os circuitos antes do público', icon: '✅' },
+    ];
+
+    const glossaryTerms = [
+        { term: 'Ampere (A)', def: 'Unidade de corrente elétrica. Mede a quantidade de eletricidade que flui pelo fio por segundo.', cat: 'Básico' },
+        { term: 'Volt (V)', def: 'Unidade de tensão elétrica. Mede a "pressão" que empurra a eletricidade pelos fios.', cat: 'Básico' },
+        { term: 'Watt (W)', def: 'Unidade de potência. Mede quanta energia um equipamento consome. Watts = Volts × Amperes.', cat: 'Básico' },
+        { term: 'kVA', def: 'Quilovolt-ampere. Unidade usada para medir a potência aparente de geradores e transformadores.', cat: 'Intermediário' },
+        { term: 'Disjuntor', def: 'Dispositivo de proteção que desliga automaticamente quando a corrente ultrapassa o limite seguro.', cat: 'Proteção' },
+        { term: 'DR (Diferencial Residual)', def: 'Disjuntor especial que detecta fuga de corrente e previne choques elétricos em pessoas.', cat: 'Proteção' },
+        { term: 'Aterramento', def: 'Ligação dos equipamentos ao solo que desvia correntes perigosas, protegendo contra choques.', cat: 'Proteção' },
+        { term: 'Fator de Potência', def: 'Indica eficiência do equipamento (0 a 1). Quanto mais perto de 1, mais eficiente. Motores têm FP baixo.', cat: 'Avançado' },
+        { term: 'Monofásico', def: 'Sistema com 1 fase e 1 neutro. Comum em residências. Tensões: 127V ou 220V.', cat: 'Sistemas' },
+        { term: 'Bifásico', def: 'Sistema com 2 fases e 1 neutro. Permite obter 220V entre fases. Comum em sobrados.', cat: 'Sistemas' },
+        { term: 'Trifásico', def: 'Sistema com 3 fases e 1 neutro. Usado em indústrias e grandes eventos. Permite 380V.', cat: 'Sistemas' },
+        { term: 'NBR 5410', def: 'Norma brasileira da ABNT que define as regras para instalações elétricas de baixa tensão.', cat: 'Normas' },
+        { term: 'NR-10', def: 'Norma regulamentadora do MTE sobre segurança em instalações e serviços com eletricidade.', cat: 'Normas' },
+        { term: 'Sobrecarga', def: 'Quando a corrente consumida ultrapassa a capacidade do disjuntor ou do cabo. Risco de incêndio!', cat: 'Riscos' },
+        { term: 'Curto-circuito', def: 'Contato direto entre fase e neutro/terra. Gera corrente altíssima e pode causar explosão e fogo.', cat: 'Riscos' },
+        { term: 'Dimmer', def: 'Equipamento que controla a intensidade luminosa de refletores, variando a tensão enviada.', cat: 'Equipamentos' },
+        { term: 'DMX', def: 'Protocolo digital usado para controlar equipamentos de iluminação profissional (mesas de luz).', cat: 'Equipamentos' },
+        { term: 'Moving Head', def: 'Refletor motorizado que pode girar e inclinar, com controle via DMX. Comum em shows e eventos.', cat: 'Equipamentos' },
+    ];
+
+    const filteredGlossary = useMemo(() => {
+        if (!glossarySearch.trim()) return glossaryTerms;
+        const q = glossarySearch.toLowerCase();
+        return glossaryTerms.filter(t => t.term.toLowerCase().includes(q) || t.def.toLowerCase().includes(q));
+    }, [glossarySearch]);
 
     const toggleSection = (section: string) => {
         setExpandedSection(expandedSection === section ? null : section);
@@ -518,6 +564,201 @@ export function EducationView() {
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </EducationCard>
+
+            {/* Seção 5: Guia de Cabos */}
+            <EducationCard
+                title="🔗 Guia de Cabos e Condutores"
+                icon={Zap}
+                isExpanded={expandedSection === 'cables'}
+                onToggle={() => toggleSection('cables')}
+            >
+                <div className="space-y-5">
+                    <p className="text-slate-200 leading-relaxed">
+                        Escolher o <strong className="text-blue-400">cabo certo</strong> é essencial para evitar aquecimento e incêndios. A tabela abaixo segue a <strong>NBR 5410</strong>:
+                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-700">
+                                    <th className="text-left py-2 px-3 text-slate-400 font-bold">Seção (mm²)</th>
+                                    <th className="text-left py-2 px-3 text-slate-400 font-bold">Corrente Máx.</th>
+                                    <th className="text-left py-2 px-3 text-slate-400 font-bold">Uso Típico</th>
+                                    <th className="text-left py-2 px-3 text-slate-400 font-bold">Cor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[
+                                    { secao: '1,5', corrente: '15,5A', uso: 'Iluminação', cor: '🟡 Amarelo' },
+                                    { secao: '2,5', corrente: '21A', uso: 'Tomadas gerais', cor: '🔵 Azul' },
+                                    { secao: '4,0', corrente: '28A', uso: 'Ar-cond. pequeno', cor: '🟢 Verde' },
+                                    { secao: '6,0', corrente: '36A', uso: 'Chuveiro/Ar-cond.', cor: '⚫ Preto' },
+                                    { secao: '10', corrente: '50A', uso: 'Quadros de força', cor: '🔴 Vermelho' },
+                                    { secao: '16', corrente: '68A', uso: 'Eventos médios', cor: '⚫ Preto' },
+                                    { secao: '25', corrente: '89A', uso: 'Eventos grandes', cor: '⚫ Preto' },
+                                    { secao: '35', corrente: '110A', uso: 'Alimentação geral', cor: '⚫ Preto' },
+                                ].map((row, i) => (
+                                    <tr key={i} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                        <td className="py-2.5 px-3 font-bold text-emerald-400">{row.secao}</td>
+                                        <td className="py-2.5 px-3 text-white font-mono">{row.corrente}</td>
+                                        <td className="py-2.5 px-3 text-slate-300">{row.uso}</td>
+                                        <td className="py-2.5 px-3 text-slate-300">{row.cor}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/30">
+                        <p className="text-yellow-200 text-sm leading-relaxed">
+                            ⚠️ <strong>Regra de Ouro:</strong> A corrente calculada pelo app nunca deve ultrapassar a capacidade do cabo. Na dúvida, <strong>use cabo mais grosso</strong>.
+                        </p>
+                    </div>
+                </div>
+            </EducationCard>
+
+            {/* Seção 6: Cálculo Trifásico */}
+            <EducationCard
+                title="🔺 Cálculo Trifásico Simplificado"
+                icon={Zap}
+                isExpanded={expandedSection === 'three-phase'}
+                onToggle={() => toggleSection('three-phase')}
+            >
+                <div className="space-y-5">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-5">
+                        <p className="text-slate-200 leading-relaxed mb-4">
+                            Em eventos grandes, usamos <strong className="text-blue-400">energia trifásica</strong>. Imagine que ao invés de 1 cano de água, você tem <strong>3 canos</strong> trabalhando juntos!
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-red-900/20 rounded-lg p-3 border border-red-500/30 text-center">
+                                <div className="text-2xl font-bold text-red-400">Fase A</div>
+                                <div className="text-xs text-slate-400 mt-1">Vermelho</div>
+                            </div>
+                            <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30 text-center">
+                                <div className="text-2xl font-bold text-yellow-400">Fase B</div>
+                                <div className="text-xs text-slate-400 mt-1">Amarelo/Branco</div>
+                            </div>
+                            <div className="bg-blue-900/20 rounded-lg p-3 border border-blue-500/30 text-center">
+                                <div className="text-2xl font-bold text-blue-400">Fase C</div>
+                                <div className="text-xs text-slate-400 mt-1">Azul/Marrom</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 rounded-lg p-5 border border-purple-500/30">
+                        <h4 className="text-lg font-bold text-white mb-3">🧮 Fórmula do Trifásico:</h4>
+                        <div className="bg-slate-900/50 rounded-lg p-5 text-center border border-purple-500/30">
+                            <div className="text-2xl font-bold text-emerald-400 mb-2">
+                                I = P ÷ (√3 × V × FP)
+                            </div>
+                            <div className="text-sm text-slate-400 mt-2">
+                                √3 = 1,732 (constante do sistema trifásico)
+                            </div>
+                        </div>
+                        <div className="mt-4 bg-slate-900/30 rounded p-4">
+                            <div className="font-bold text-white mb-2">📝 Exemplo: Festival com 53.000W em 380V trifásico</div>
+                            <div className="text-slate-300 text-sm space-y-2">
+                                <div className="bg-slate-800/50 rounded p-2 font-mono text-center">
+                                    I = 53.000 ÷ (1,732 × 380 × 0,92) = <strong className="text-emerald-400">87,5A</strong>
+                                </div>
+                                <div className="text-slate-400">✅ Cada fase recebe ~29,2A — balanceado!</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-emerald-900/10 border border-emerald-500/30 rounded-lg p-4">
+                        <p className="text-emerald-300 text-sm">💡 <strong>Dica PRO:</strong> Distribua os equipamentos igualmente entre as 3 fases. Se uma fase ficar com muito mais carga, pode causar desequilíbrio e queimar equipamentos!</p>
+                    </div>
+                </div>
+            </EducationCard>
+
+            {/* Seção 7: Checklist de Segurança */}
+            <EducationCard
+                title="✅ Checklist de Segurança para Eventos"
+                icon={Shield}
+                isExpanded={expandedSection === 'checklist'}
+                onToggle={() => toggleSection('checklist')}
+                highlight
+            >
+                <div className="space-y-4">
+                    <p className="text-slate-200 leading-relaxed">
+                        Use esta lista antes de <strong className="text-blue-400">todo evento</strong> para garantir a segurança elétrica:
+                    </p>
+                    <div className="space-y-2">
+                        {safetyItems.map(item => (
+                            <button
+                                key={item.key}
+                                onClick={() => toggleCheckItem(item.key)}
+                                className={`w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3 ${safetyChecklist[item.key]
+                                        ? 'bg-emerald-900/20 border-emerald-500/40 text-emerald-300'
+                                        : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-600'
+                                    }`}
+                            >
+                                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${safetyChecklist[item.key]
+                                        ? 'bg-emerald-500 border-emerald-500'
+                                        : 'border-slate-600'
+                                    }`}>
+                                    {safetyChecklist[item.key] && <CheckCircle className="w-4 h-4 text-white" />}
+                                </div>
+                                <span className="text-lg">{item.icon}</span>
+                                <span className={`text-sm font-medium ${safetyChecklist[item.key] ? 'line-through opacity-70' : ''}`}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 mt-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-400">Progresso:</span>
+                            <span className="text-sm font-bold text-white">
+                                {Object.values(safetyChecklist).filter(Boolean).length}/{safetyItems.length}
+                            </span>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-2.5 mt-2">
+                            <div
+                                className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2.5 rounded-full transition-all duration-500"
+                                style={{ width: `${(Object.values(safetyChecklist).filter(Boolean).length / safetyItems.length) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </EducationCard>
+
+            {/* Seção 8: Glossário Técnico */}
+            <EducationCard
+                title="📖 Glossário Técnico"
+                icon={BookMarked}
+                isExpanded={expandedSection === 'glossary'}
+                onToggle={() => toggleSection('glossary')}
+            >
+                <div className="space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input
+                            type="text"
+                            placeholder="Buscar termo..."
+                            value={glossarySearch}
+                            onChange={e => setGlossarySearch(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:border-blue-500 outline-none transition-all placeholder-slate-500"
+                        />
+                    </div>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {filteredGlossary.map((item, i) => (
+                            <div key={i} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 hover:border-blue-500/30 transition-all">
+                                <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-bold text-blue-400">{item.term}</h4>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 font-bold whitespace-nowrap">{item.cat}</span>
+                                </div>
+                                <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{item.def}</p>
+                            </div>
+                        ))}
+                        {filteredGlossary.length === 0 && (
+                            <div className="text-center py-8 text-slate-500">
+                                <BookMarked className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">Nenhum termo encontrado</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </EducationCard>

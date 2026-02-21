@@ -15,6 +15,7 @@ import { supabase } from './services/supabaseClient';
 import { MobileDrawer } from './components/MobileDrawer';
 import { PowerSystemView } from './components/PowerSystemView';
 import { EducationView } from './components/EducationView';
+import NotificationCenter from './components/NotificationCenter';
 
 export default function App() {
   return (
@@ -31,16 +32,12 @@ function StatusIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isDbConnected, setIsDbConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   React.useEffect(() => {
     // Network Listeners
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
-    // Sync Listener (Custom Event or Polling - Simplified here via interval check if needed, 
-    // but better to expose state. For now, we will simulate sync state via window event or simple check)
-    // To make it real, we could expose a global state or simple event bus.
-    // For simplicity, let's assume sync is fast. We will check DB connection periodically.
 
     const checkDb = async () => {
       if (!navigator.onLine) {
@@ -51,8 +48,8 @@ function StatusIndicator() {
       setIsDbConnected(ok);
     };
 
-    const interval = setInterval(checkDb, 30000); // Check every 30s
-    checkDb(); // Initial check
+    const interval = setInterval(checkDb, 30000);
+    checkDb();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -64,6 +61,16 @@ function StatusIndicator() {
     };
   }, []);
 
+  // Auto-hide on mobile after 4 seconds if connected
+  React.useEffect(() => {
+    if (isDbConnected && isOnline) {
+      const timer = setTimeout(() => setIsVisible(false), 4000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(true);
+    }
+  }, [isDbConnected, isOnline]);
+
   if (!isOnline) {
     return (
       <div className="fixed top-0 left-0 w-full bg-orange-500 text-white text-[10px] font-bold text-center py-0.5 z-[60]">
@@ -72,11 +79,14 @@ function StatusIndicator() {
     );
   }
 
+  // If DB is connected and auto-hidden, show nothing (clean mobile UI)
+  if (!isVisible && isDbConnected) return null;
+
   return (
-    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-1 items-end pointer-events-none">
+    <div className="fixed top-[72px] right-3 md:top-4 md:right-4 z-40 flex flex-col gap-1 items-end pointer-events-none transition-all duration-500">
       {/* DB Status */}
       <div className={`
-          flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-md border shadow-lg transition-all
+          flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md border shadow-lg transition-all
           ${isDbConnected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}
        `}>
         <div className={`w-1.5 h-1.5 rounded-full ${isDbConnected ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}></div>
@@ -302,6 +312,11 @@ function MainLayout() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Notification Bell */}
+            <div className="flex items-center">
+              <NotificationCenter />
             </div>
           </div>
         </div>
