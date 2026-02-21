@@ -128,7 +128,7 @@ export const CalculatorView: React.FC = () => {
         voltageSystem: networkVoltage,
         items: selectedItems,
         totalWatts: totals.totalWatts,
-        totalAmperes: totals.totalAmperes,
+        totalAmperes: totals.ampsPerPhase,
         createdAt: ''
       });
       setIsSaveModalOpen(false);
@@ -163,11 +163,9 @@ export const CalculatorView: React.FC = () => {
       totalCount += q;
     });
 
-    // If 3-phase, amperage is distributed (simplified assumption: balanced load)
-    // In 3-phase: Total Watts = V * I * sqrt(3) * PF
-    // So I_per_phase = Total Watts / (V * sqrt(3) * PF_avg)
-    // Or roughly Total Amps (single phase eq) / 3
-    const ampsPerPhase = phases === 3 ? totalAmperes / 3 : totalAmperes;
+    // If 3-phase, amperage is distributed (balanced load)
+    // Correct 3-phase line current formula: I = P / (V * sqrt(3) * PF)
+    const ampsPerPhase = phases === 3 ? totalAmperes / Math.sqrt(3) : totalAmperes;
 
     return { totalWatts, totalVA, totalAmperes, ampsPerPhase, totalCount };
   }, [selectedItems, networkVoltage, phases]);
@@ -309,7 +307,7 @@ export const CalculatorView: React.FC = () => {
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-yellow-500" /> Configuração da Rede Elétrica
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Tensão da Rede</label>
             <div className="relative">
@@ -331,6 +329,26 @@ export const CalculatorView: React.FC = () => {
           </div>
 
           <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Sistema</label>
+            <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700 h-[50px]">
+              <button
+                onClick={() => setPhases(1)}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-md transition-all font-bold text-sm ${phases === 1 ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${phases === 1 ? 'bg-white' : 'bg-slate-700'}`}></div>
+                Monofásico
+              </button>
+              <button
+                onClick={() => setPhases(3)}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-md transition-all font-bold text-sm ${phases === 3 ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${phases === 3 ? 'bg-white' : 'bg-slate-700'}`}></div>
+                Trifásico
+              </button>
+            </div>
+          </div>
+
+          <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Disjuntor Disponível (A)</label>
             <input
               type="number"
@@ -339,7 +357,7 @@ export const CalculatorView: React.FC = () => {
               placeholder="Ex: 63"
               value={circuitBreaker}
               onChange={(e) => setCircuitBreaker(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none font-mono placeholder:text-slate-600"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none font-mono placeholder:text-slate-600 h-[50px]"
             />
           </div>
         </div>
