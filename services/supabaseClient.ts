@@ -38,7 +38,10 @@ const equipmentToDb = (item: Equipment): any => ({
   amperes: item.amperes,
   power_factor: item.powerFactor,
   quantity_owned: item.quantityOwned,
-  status: item.status
+  status: item.status,
+  panel_width: item.panelWidth,
+  panel_height: item.panelHeight,
+  panels_per_case: item.panelsPerCase
 });
 
 // Helper to convert Equipment from PostgreSQL (snake_case) to TypeScript (camelCase)
@@ -53,7 +56,10 @@ const equipmentFromDb = (dbItem: any): Equipment => ({
   amperes: Number(dbItem.amperes) || 0,
   powerFactor: Number(dbItem.power_factor) || 1.0,
   quantityOwned: Number(dbItem.quantity_owned) || 0,
-  status: dbItem.status || 'active'
+  status: dbItem.status || 'active',
+  panelWidth: dbItem.panel_width ? Number(dbItem.panel_width) : undefined,
+  panelHeight: dbItem.panel_height ? Number(dbItem.panel_height) : undefined,
+  panelsPerCase: dbItem.panels_per_case ? Number(dbItem.panels_per_case) : undefined
 });
 
 // Helper to convert Report from TypeScript (camelCase) to PostgreSQL (snake_case)

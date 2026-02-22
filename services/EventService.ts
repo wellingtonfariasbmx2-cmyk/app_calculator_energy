@@ -26,7 +26,55 @@ export class EventService {
             throw error;
         }
 
-        return (data || []).map(this.mapFromDatabase);
+        const events = (data || []).map(this.mapFromDatabase);
+
+        // Auto-update statuses based on dates
+        await this.reconcileEventStatuses(events);
+
+        return events;
+    }
+
+    /**
+     * Reconcilia os status dos eventos baseados nas datas atuais
+     */
+    private static async reconcileEventStatuses(events: Event[]): Promise<void> {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Consideramos apenas a data, sem o horário para o início/fim
+
+        for (const event of events) {
+            if (event.status === 'cancelled' || event.status === 'completed') continue;
+
+            const startDate = new Date(event.startDate);
+            startDate.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(event.endDate || event.startDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            let newStatus: Event['status'] | null = null;
+
+            if (now > endDate) {
+                newStatus = 'completed';
+            } else if (now >= startDate && now <= endDate && event.status === 'planned') {
+                newStatus = 'in_progress';
+            }
+
+            if (newStatus) {
+                try {
+                    // Atualiza localmente o objeto para refletir na UI imediatamente
+                    event.status = newStatus;
+
+                    // Persiste no banco de dados de forma silenciosa
+                    await supabase
+                        .from('events')
+                        .update({ status: newStatus })
+                        .eq('id', event.id);
+
+                    console.log(`Status do evento ${event.name} atualizado automaticamente para ${newStatus}`);
+                } catch (err) {
+                    console.error('Erro ao atualizar status automático do evento:', err);
+                }
+            }
+        }
     }
 
     /**
@@ -181,6 +229,7 @@ export class EventService {
         equipmentId: string,
         excludeEventId?: string
     ): Promise<number> {
+        if (!supabase) return -1;
         // Buscar equipamento
         const { data: equipment, error: eqError } = await supabase
             .from('equipments')
@@ -189,7 +238,7 @@ export class EventService {
             .single();
 
         if (eqError || !equipment) {
-            return 0;
+            return -1; // Sinaliza que o item não foi encontrado no banco
         }
 
         // Buscar alocações ativas (eventos planejados ou em andamento)

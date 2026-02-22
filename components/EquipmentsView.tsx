@@ -26,6 +26,17 @@ export const EquipmentsView: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -142,7 +153,7 @@ export const EquipmentsView: React.FC = () => {
 
   const formatNum = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
-  const categories = ['Moving Head', 'Par Led', 'Blinder', 'Strobo', 'Console', 'Outros'];
+  const categories = ['Moving Head', 'Par Led', 'Blinder', 'Strobo', 'Console', 'Painel de LED', 'Outros'];
 
   if (loading) return <LoadingScreen />;
 
@@ -256,7 +267,8 @@ export const EquipmentsView: React.FC = () => {
                     ${item.category === 'Moving Head' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
                       item.category === 'Par Led' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
                         item.category === 'Console' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                          'bg-slate-800 border-slate-700 text-slate-400'}
+                          item.category === 'Painel de LED' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                            'bg-slate-800 border-slate-700 text-slate-400'}
                   `}>
                     <Zap className="w-6 h-6" />
                   </div>
@@ -307,6 +319,20 @@ export const EquipmentsView: React.FC = () => {
                   <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
                   <span className="text-white text-sm font-bold bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{item.quantityOwned}</span>
                 </div>
+
+                {item.category === 'Painel de LED' && (
+                  <div className="col-span-2 lg:col-span-5 bg-orange-500/5 border border-orange-500/10 rounded-lg p-2 mt-1 flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-orange-400" />
+                      <span className="text-[10px] text-slate-400 uppercase font-bold">Módulo:</span>
+                      <span className="text-xs text-white font-bold">{item.panelWidth}x{item.panelHeight}m</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold">Logística:</span>
+                      <span className="text-xs text-white font-bold">{item.panelsPerCase} placas/case</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -315,8 +341,8 @@ export const EquipmentsView: React.FC = () => {
 
       {/* MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-surface border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
+          <div className="bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
               <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
                 <div className="p-1 sm:p-1.5 bg-blue-600 rounded-lg">
@@ -329,7 +355,7 @@ export const EquipmentsView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+            <form onSubmit={handleSave} className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 overflow-y-auto flex-1">
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Equipamento</label>
                 <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-600"
@@ -385,6 +411,40 @@ export const EquipmentsView: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {editingItem.category === 'Painel de LED' && (
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-700/50 pt-4 mt-2">
+                  <div className="sm:col-span-3">
+                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                      <Package className="w-4 h-4 text-blue-500" /> Especificações do Painel
+                    </h3>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Largura Placa (m)</label>
+                    <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                      value={editingItem.panelWidth || ''}
+                      onChange={e => handleFieldChange('panelWidth', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                      placeholder="Ex: 0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Altura Placa (m)</label>
+                    <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                      value={editingItem.panelHeight || ''}
+                      onChange={e => handleFieldChange('panelHeight', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                      placeholder="Ex: 1.0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Placas por Case</label>
+                    <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                      value={editingItem.panelsPerCase || ''}
+                      onChange={e => handleFieldChange('panelsPerCase', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                      placeholder="Ex: 6"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="md:col-span-2 border-t border-slate-700/50 pt-4 mt-2">
                 <h3 className="text-white text-sm font-bold mb-4 flex items-center gap-2">

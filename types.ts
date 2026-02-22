@@ -3,13 +3,18 @@ export interface Equipment {
   name: string;
   brand: string;
   model: string;
-  category: 'Moving Head' | 'Par Led' | 'Blinder' | 'Strobo' | 'Console' | 'Outros';
+  category: 'Moving Head' | 'Par Led' | 'Blinder' | 'Strobo' | 'Console' | 'Painel de LED' | 'Outros';
   watts: number;
   voltage: number; // 110, 220, or fixed
   amperes: number; // calculated or manual
   powerFactor: number; // 0.0 to 1.0
   quantityOwned: number;
   status: 'active' | 'maintenance' | 'inactive';
+
+  // Campos para Painel de LED
+  panelWidth?: number; // largura em metros (ex: 0.5)
+  panelHeight?: number; // altura em metros (ex: 1.0)
+  panelsPerCase?: number; // quantidade de placas por case
 
   // Campos calculados em runtime para gestão de estoque
   quantityAvailable?: number; // Calculado: owned - allocated

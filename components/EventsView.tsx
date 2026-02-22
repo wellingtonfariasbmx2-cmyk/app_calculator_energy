@@ -30,6 +30,13 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
 
     useEffect(() => {
         loadEvents();
+
+        // Verificar se viemos de uma notificação
+        const autoOpenId = localStorage.getItem('autoOpenEventId');
+        if (autoOpenId) {
+            setSelectedEventId(autoOpenId);
+            localStorage.removeItem('autoOpenEventId');
+        }
     }, []);
 
     const loadEvents = async () => {

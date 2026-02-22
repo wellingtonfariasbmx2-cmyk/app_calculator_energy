@@ -376,6 +376,7 @@
 .truncate-2-lines {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -582,9 +583,21 @@
     border-radius: 0;
   }
 
-  /* Scroll suave em mobile */
-  * {
+  /* Scroll suave em mobile - Aplicado seletivamente para evitar bugs */
+  body {
     -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    height: auto;
+    min-height: 100%;
+  }
+
+  html {
+    overflow-x: hidden;
+    height: auto;
+    min-height: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Melhor legibilidade de texto */

@@ -116,6 +116,15 @@ async function markAllAsRead(): Promise<void> {
     await supabase.from('notifications').update({ read: true }).eq('read', false);
 }
 
+async function clearHistory(): Promise<void> {
+    if (!supabase) return;
+    const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete everything
+    if (error) console.error('❌ Erro ao limpar histórico:', error);
+}
+
 // --- Push (navegador) ---
 async function requestPushPermission(): Promise<NotificationPermission> {
     if (!('Notification' in window)) {
@@ -288,4 +297,5 @@ export const NotificationService = {
     cleanup,
     timeAgo,
     getNotificationMeta,
+    clearHistory
 };

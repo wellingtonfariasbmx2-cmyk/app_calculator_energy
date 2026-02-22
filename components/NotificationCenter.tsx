@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, Check, CheckCheck, Calendar, Package, Zap, Volume2 } from 'lucide-react';
+import { Bell, X, Check, CheckCheck, Calendar, Package, Zap, Volume2, Trash2 } from 'lucide-react';
 import { NotificationService, AppNotification } from '../services/NotificationService';
 
-export default function NotificationCenter() {
+interface NotificationCenterProps {
+    onNavigateToEvent?: (eventId: string) => void;
+}
+
+export default function NotificationCenter({ onNavigateToEvent }: NotificationCenterProps) {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +66,26 @@ export default function NotificationCenter() {
         await NotificationService.markAllAsRead();
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         setUnreadCount(0);
+    };
+
+    const handleClearHistory = async () => {
+        if (!confirm('Deseja limpar todo o histórico de notificações?')) return;
+        await NotificationService.clearHistory();
+        setNotifications([]);
+        setUnreadCount(0);
+    };
+
+    const handleNotificationClick = async (notif: AppNotification) => {
+        // Marcar como lida se ainda não for
+        if (!notif.read) {
+            handleMarkAsRead(notif.id);
+        }
+
+        // Navegar se for do tipo evento e tiver ID
+        if (notif.entity_type === 'event' && notif.entity_id && onNavigateToEvent) {
+            onNavigateToEvent(notif.entity_id);
+            setIsOpen(false);
+        }
     };
 
     const getIcon = (type: string) => {
@@ -214,9 +238,29 @@ export default function NotificationCenter() {
                                         gap: '4px',
                                     }}
                                 >
-                                    <CheckCheck size={13} /> Ler todas
+                                    <CheckCheck size={13} />
+                                    <span className="hidden sm:inline">Lidas</span>
                                 </button>
                             )}
+                            <button
+                                onClick={handleClearHistory}
+                                title="Limpar histórico"
+                                style={{
+                                    background: 'rgba(239,68,68,0.1)',
+                                    border: '1px solid rgba(239,68,68,0.2)',
+                                    borderRadius: '8px',
+                                    padding: '4px 8px',
+                                    cursor: 'pointer',
+                                    color: '#ef4444',
+                                    fontSize: '11px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                }}
+                            >
+                                <Trash2 size={13} />
+                                <span className="hidden sm:inline">Limpar</span>
+                            </button>
                             <button
                                 onClick={() => setIsOpen(false)}
                                 style={{
@@ -258,7 +302,7 @@ export default function NotificationCenter() {
                             notifications.map((notif, idx) => (
                                 <div
                                     key={notif.id}
-                                    onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+                                    onClick={() => handleNotificationClick(notif)}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'flex-start',

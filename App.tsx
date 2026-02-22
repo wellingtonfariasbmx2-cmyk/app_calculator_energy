@@ -316,7 +316,16 @@ function MainLayout() {
 
             {/* Notification Bell */}
             <div className="flex items-center">
-              <NotificationCenter />
+              <NotificationCenter
+                onNavigateToEvent={(eventId) => {
+                  setCurrentView('events');
+                  // Como o estado de selectedEventId está dentro do EventsView, 
+                  // passamos uma flag ou usamos um mecanismo para EventsView abrir direto.
+                  // Para simplificar, configuramos para navegar e o usuário clica no evento.
+                  // Mas se quisermos ser precisos, podemos passar o ID via localStorage ou um Context.
+                  localStorage.setItem('autoOpenEventId', eventId);
+                }}
+              />
             </div>
           </div>
         </div>

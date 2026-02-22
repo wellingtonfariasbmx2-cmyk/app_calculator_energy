@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, MapPin, Users, Clock, Package, FileText, Plus, Edit2, Trash2, ExternalLink, Link, X, Download, Search, Minus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Clock, Package, FileText, Plus, Edit2, Trash2, ExternalLink, Link, X, Download, Search, Minus, Activity } from 'lucide-react';
 import { Event, Equipment, DistributionProject } from '../types';
 import { EventService } from '../services/EventService';
 import { DataService } from '../services/supabaseClient';
@@ -28,6 +28,15 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
     const [savingEquipments, setSavingEquipments] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // LED Panel Calc State
+    const [isLEDCalcOpen, setIsLEDCalcOpen] = useState(false);
+    const [activeLEDEquip, setActiveLEDEquip] = useState<Equipment | null>(null);
+    const [targetArea, setTargetArea] = useState<number | string>('');
+    const [targetWidth, setTargetWidth] = useState<number | string>('');
+    const [targetHeight, setTargetHeight] = useState<number | string>('');
+    const [calcMode, setCalcMode] = useState<'area' | 'dimensions'>('dimensions');
+    const [availabilityMap, setAvailabilityMap] = useState<Record<string, number>>({});
 
     const { success, error: showError } = useToast();
     const { confirm, ConfirmModalComponent } = useConfirm();
@@ -136,8 +145,49 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
         });
     };
 
+    useEffect(() => {
+        if (isEquipModalOpen && allEquipments.length > 0) {
+            checkAvailability();
+        }
+    }, [isEquipModalOpen, allEquipments]);
+
+    const checkAvailability = async () => {
+        const map: Record<string, number> = {};
+
+        // Inicializa com o estoque total primeiro (fallback)
+        allEquipments.forEach(eq => {
+            map[eq.id] = eq.quantityOwned || (eq as any).quantity || 0;
+        });
+
+        // Só tenta o banco se tivermos um evento e datas (que EventDetailView sempre tem se aberto)
+        if (event) {
+            for (const eq of allEquipments) {
+                try {
+                    const available = await EventService.checkAvailability(eq.id, event.id);
+                    if (available !== -1) {
+                        map[eq.id] = available;
+                    }
+                } catch (err) {
+                    console.error('Erro na verificação de disponibilidade:', err);
+                }
+            }
+        }
+        setAvailabilityMap(map);
+    };
+
     const handleSaveEquipments = async () => {
         if (!event || Object.keys(selectedEquipments).length === 0) return;
+
+        // Validar disponibilidade ANTES de salvar
+        for (const [equipId, qty] of Object.entries(selectedEquipments)) {
+            const available = availabilityMap[equipId] || 0;
+            const eq = allEquipments.find(e => e.id === equipId);
+            if (available < (qty as number)) {
+                showError(`${eq?.name || 'Equipamento'}: apenas ${available} disponível(is)`);
+                return;
+            }
+        }
+
         setSavingEquipments(true);
         try {
             for (const [equipId, qty] of Object.entries(selectedEquipments)) {
@@ -151,6 +201,42 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
         } finally {
             setSavingEquipments(false);
         }
+    };
+
+    const handleOpenLEDCalc = (eq: Equipment) => {
+        setActiveLEDEquip(eq);
+        setTargetArea('');
+        setTargetWidth('');
+        setTargetHeight('');
+        setCalcMode('dimensions');
+        setIsLEDCalcOpen(true);
+    };
+
+    const handleApplyLEDCalc = () => {
+        if (!activeLEDEquip) return;
+
+        let area = 0;
+        if (calcMode === 'area') {
+            area = Number(targetArea);
+        } else {
+            area = Number(targetWidth) * Number(targetHeight);
+        }
+
+        if (area <= 0) return;
+
+        const w = activeLEDEquip.panelWidth || 0.5;
+        const h = activeLEDEquip.panelHeight || 1.0;
+
+        const plates = Math.ceil(area / (w * h));
+
+        setSelectedEquipments(prev => ({
+            ...prev,
+            [activeLEDEquip.id]: plates
+        }));
+
+        setIsLEDCalcOpen(false);
+        setActiveLEDEquip(null);
+        success(`${plates} placas aplicadas para ${area}m²`);
     };
 
     const formatDate = (dateStr: string) => {
@@ -561,10 +647,22 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                                             >
                                                 <div className="flex-1">
                                                     <p className="text-white font-medium text-sm">{eq.name}</p>
-                                                    <div className="flex items-center gap-3 mt-0.5">
+                                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                                         <span className="text-xs text-slate-500">{eq.brand} {eq.model}</span>
-                                                        <span className="text-xs text-slate-500">Estoque: {eq.quantity}</span>
+                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${(availabilityMap[eq.id] || 0) > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                            {(availabilityMap[eq.id] || 0)} disp.
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-500">Saldo: {eq.quantityOwned || (eq as any).quantity}</span>
                                                     </div>
+                                                    {eq.category === 'Painel de LED' && (
+                                                        <button
+                                                            onClick={() => handleOpenLEDCalc(eq)}
+                                                            className="mt-2 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 transition-colors"
+                                                        >
+                                                            <Activity className="w-3 h-3" />
+                                                            Calculadora de Área
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {qty > 0 && (
@@ -580,7 +678,8 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                                                     )}
                                                     <button
                                                         onClick={() => handleEquipQtyChange(eq.id, 1)}
-                                                        className="w-8 h-8 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg flex items-center justify-center transition-colors"
+                                                        disabled={(selectedEquipments[eq.id] || 0) >= (availabilityMap[eq.id] || 0)}
+                                                        className="w-8 h-8 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg flex items-center justify-center transition-colors"
                                                     >
                                                         <Plus className="w-4 h-4" />
                                                     </button>
@@ -631,6 +730,131 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                 onSave={loadEventDetails}
                 event={event}
             />
+
+            {/* LED Area Calculator Modal */}
+            {isLEDCalcOpen && activeLEDEquip && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="bg-surface border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+                            <h3 className="text-white font-bold flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-emerald-400" />
+                                Cálcular Metragem de LED
+                            </h3>
+                            <button onClick={() => setIsLEDCalcOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">{activeLEDEquip.name}</p>
+                                    <p className="text-xs text-slate-500">
+                                        Módulo: {activeLEDEquip.panelWidth || 0.5}m x {activeLEDEquip.panelHeight || 1.0}m
+                                        ({(activeLEDEquip.panelWidth || 0.5) * (activeLEDEquip.panelHeight || 1.0)}m²)
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold">Logística</p>
+                                    <p className="text-xs text-white font-bold">{activeLEDEquip.panelsPerCase || 6} placas / case</p>
+                                </div>
+                            </div>
+
+                            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                                <button
+                                    onClick={() => setCalcMode('dimensions')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'dimensions' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Dimensões (LxA)
+                                </button>
+                                <button
+                                    onClick={() => setCalcMode('area')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'area' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Área Total (m²)
+                                </button>
+                            </div>
+
+                            {calcMode === 'dimensions' ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Largura (m)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Ex: 5"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none"
+                                            value={targetWidth}
+                                            onChange={e => setTargetWidth(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Altura (m)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Ex: 4"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none"
+                                            value={targetHeight}
+                                            onChange={e => setTargetHeight(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Quantos m² você precisa?</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            placeholder="Ex: 32"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none pr-12"
+                                            value={targetArea}
+                                            onChange={e => setTargetArea(e.target.value)}
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">m²</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {((calcMode === 'dimensions' && targetWidth && targetHeight) || (calcMode === 'area' && targetArea)) && (
+                                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                                        <span className="block text-[10px] text-emerald-500 uppercase font-bold mb-1">Total de Placas</span>
+                                        <span className="text-2xl font-black text-white">
+                                            {(() => {
+                                                const area = calcMode === 'area' ? Number(targetArea) : Number(targetWidth) * Number(targetHeight);
+                                                return Math.ceil(area / ((activeLEDEquip.panelWidth || 0.5) * (activeLEDEquip.panelHeight || 1.0)));
+                                            })()}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                                        <span className="block text-[10px] text-blue-500 uppercase font-bold mb-1">Cases (Hards)</span>
+                                        <span className="text-2xl font-black text-white">
+                                            {(() => {
+                                                const area = calcMode === 'area' ? Number(targetArea) : Number(targetWidth) * Number(targetHeight);
+                                                const plates = Math.ceil(area / ((activeLEDEquip.panelWidth || 0.5) * (activeLEDEquip.panelHeight || 1.0)));
+                                                return Math.ceil(plates / (activeLEDEquip.panelsPerCase || 6));
+                                            })()}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
+                                <button
+                                    onClick={handleApplyLEDCalc}
+                                    disabled={
+                                        (calcMode === 'area' && (!targetArea || Number(targetArea) <= 0)) ||
+                                        (calcMode === 'dimensions' && (!targetWidth || !targetHeight || Number(targetWidth) <= 0 || Number(targetHeight) <= 0))
+                                    }
+                                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    Aplicar Quantidade
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

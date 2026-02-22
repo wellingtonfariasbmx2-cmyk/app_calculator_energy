@@ -335,7 +335,22 @@ export const ExportService = {
                     doc.text(val, xPos + 2, y);
                     xPos += colWidths[i];
                 });
-                y += 7;
+
+                if (eq?.category === 'Painel de LED') {
+                    y += 3.5;
+                    const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
+                    const cases = Math.ceil(alloc.quantityAllocated / panelsPerCase);
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 80, 0); // Orange-ish
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`> LOGÍSTICA LED: ${alloc.quantityAllocated} placas em ${cases} case(s) de transporte`, margin + 2, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(40, 40, 40);
+                    doc.setFontSize(9);
+                    y += 3.5;
+                } else {
+                    y += 7;
+                }
             });
 
             // Totals
