@@ -194,7 +194,10 @@ export function MaintenanceView() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="text-white font-bold text-sm">{record.equipment?.name || 'Equipamento'}</h3>
+                                            <h3 className="text-white font-bold text-sm">
+                                                {record.equipment?.name || 'Equipamento'}
+                                                {record.equipmentNumber && <span className="text-slate-400 font-normal ml-1">Nº {record.equipmentNumber}</span>}
+                                            </h3>
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColors[record.status]}`}>
                                                 {statusLabels[record.status]}
                                             </span>
@@ -293,6 +296,7 @@ function MaintenanceModal({ record, equipments, onClose, onSave }: {
 }) {
     const [formData, setFormData] = useState({
         equipmentId: record?.equipmentId || '',
+        equipmentNumber: record?.equipmentNumber || '',
         type: record?.type || 'corrective' as MaintenanceRecord['type'],
         description: record?.description || '',
         status: record?.status || 'pending' as MaintenanceRecord['status'],
@@ -321,6 +325,7 @@ function MaintenanceModal({ record, equipments, onClose, onSave }: {
         try {
             const data: Partial<MaintenanceRecord> = {
                 equipmentId: formData.equipmentId,
+                equipmentNumber: formData.equipmentNumber || undefined,
                 type: formData.type as MaintenanceRecord['type'],
                 description: formData.description,
                 status: formData.status as MaintenanceRecord['status'],
@@ -366,19 +371,32 @@ function MaintenanceModal({ record, equipments, onClose, onSave }: {
 
                 {/* Body */}
                 <div className="overflow-y-auto flex-1 p-5 space-y-4">
-                    {/* Equipment */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipamento *</label>
-                        <select
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none transition-all"
-                            value={formData.equipmentId}
-                            onChange={e => setFormData({ ...formData, equipmentId: e.target.value })}
-                        >
-                            <option value="">Selecione um equipamento</option>
-                            {equipments.map(eq => (
-                                <option key={eq.id} value={eq.id}>{eq.name} - {eq.brand} {eq.model}</option>
-                            ))}
-                        </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Equipment */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipamento *</label>
+                            <select
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none transition-all"
+                                value={formData.equipmentId}
+                                onChange={e => setFormData({ ...formData, equipmentId: e.target.value })}
+                            >
+                                <option value="">Selecione um equipamento</option>
+                                {equipments.map(eq => (
+                                    <option key={eq.id} value={eq.id}>{eq.name} - {eq.brand} {eq.model}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Equipment Number */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Número do Aparelho</label>
+                            <input
+                                type="number"
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none transition-all"
+                                value={formData.equipmentNumber}
+                                onChange={e => setFormData({ ...formData, equipmentNumber: e.target.value })}
+                                placeholder="Ex: 1, 4, 12..."
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

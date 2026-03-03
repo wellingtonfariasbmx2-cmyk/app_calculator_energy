@@ -8,7 +8,7 @@ import { isCompatible } from '../services/utils';
 import { useConfirm } from './ConfirmModal';
 import { QuantityInput } from './QuantityInput';
 
-const STORAGE_KEY = 'lightload_calculator_state';
+const STORAGE_KEY = 'stageflow_calculator_state';
 
 export const CalculatorView: React.FC = () => {
   const [equipments, setEquipments] = useState<Equipment[]>([]);

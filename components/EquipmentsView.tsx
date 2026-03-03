@@ -175,23 +175,23 @@ export const EquipmentsView: React.FC = () => {
           </div>
 
           {/* Inventory Summary Cards */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto">
-            <div className="bg-surface border border-slate-700/50 rounded-xl p-3 flex items-center gap-3 shadow-lg hover:border-slate-600 transition-colors group">
-              <div className="p-2 bg-slate-800 rounded-lg text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
-                <Package className="w-5 h-5" />
+          <div className="grid grid-cols-2 lg:flex lg:gap-4 gap-2 sm:gap-4 w-full lg:w-auto">
+            <div className="bg-surface border border-slate-700/50 rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 shadow-lg hover:border-slate-600 transition-colors group lg:min-w-[140px]">
+              <div className="p-1.5 sm:p-2 bg-slate-800 rounded-lg text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="overflow-hidden">
-                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate">Total Itens</span>
-                <span className="text-xl font-bold text-white leading-none">{inventoryStats.totalItems}</span>
+                <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate">Total Itens</span>
+                <span className="text-base sm:text-xl font-bold text-white leading-none">{inventoryStats.totalItems}</span>
               </div>
             </div>
-            <div className="bg-surface border border-slate-700/50 rounded-xl p-3 flex items-center gap-3 shadow-lg hover:border-slate-600 transition-colors group">
-              <div className="p-2 bg-slate-800 rounded-lg text-yellow-500 shrink-0 group-hover:scale-110 transition-transform">
-                <Activity className="w-5 h-5" />
+            <div className="bg-surface border border-slate-700/50 rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 shadow-lg hover:border-slate-600 transition-colors group lg:min-w-[140px]">
+              <div className="p-1.5 sm:p-2 bg-slate-800 rounded-lg text-yellow-500 shrink-0 group-hover:scale-110 transition-transform">
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="overflow-hidden">
-                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate">Capacidade</span>
-                <span className="text-xl font-bold text-white leading-none">{inventoryStats.totalKVA} <span className="text-xs font-normal text-slate-400">kVA</span></span>
+                <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate">Capacidade</span>
+                <span className="text-base sm:text-xl font-bold text-white leading-none">{inventoryStats.totalKVA} <span className="text-[10px] sm:text-xs font-normal text-slate-400">kVA</span></span>
               </div>
             </div>
           </div>
@@ -260,27 +260,27 @@ export const EquipmentsView: React.FC = () => {
               className="bg-surface border border-slate-700/50 rounded-xl p-4 hover:border-blue-500/30 transition-all duration-300 group hover:shadow-lg hover:shadow-black/20 animate-slide-in-up"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex gap-4 overflow-hidden">
+              <div className="flex justify-between items-start mb-4 gap-2">
+                <div className="flex gap-3 sm:gap-4 overflow-hidden flex-1">
                   <div className={`
-                    w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 transition-transform group-hover:scale-105
+                    w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center border shrink-0 transition-transform group-hover:scale-105
                     ${item.category === 'Moving Head' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
                       item.category === 'Par Led' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
                         item.category === 'Console' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
                           item.category === 'Painel de LED' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
                             'bg-slate-800 border-slate-700 text-slate-400'}
                   `}>
-                    <Zap className="w-6 h-6" />
+                    <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div className="overflow-hidden">
-                    <h3 className="text-lg font-bold text-white mb-0.5 truncate group-hover:text-blue-400 transition-colors">{item.name}</h3>
-                    <p className="text-xs text-slate-400 mb-2 truncate font-medium">{item.brand} <span className="mx-1 text-slate-600">•</span> {item.model}</p>
-                    <span className="bg-slate-800/80 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wide">
+                  <div className="overflow-hidden flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-0.5 truncate group-hover:text-blue-400 transition-colors leading-tight">{item.name}</h3>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mb-2 truncate font-medium">{item.brand} <span className="mx-1 text-slate-600">•</span> {item.model}</p>
+                    <span className="bg-slate-800/80 text-slate-300 text-[9px] sm:text-[10px] px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wide whitespace-nowrap">
                       {item.category}
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex flex-col sm:flex-row gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     onClick={() => openModal(item)}
                     className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
@@ -298,26 +298,26 @@ export const EquipmentsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 border-t border-slate-800/50 pt-4 mt-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 border-t border-slate-800/50 pt-4 mt-2">
                 <div>
-                  <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Potência</span>
-                  <span className="text-white text-sm font-bold font-mono">{item.watts}<span className="text-slate-500 text-xs ml-0.5">W</span></span>
+                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Potência</span>
+                  <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.watts}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">W</span></span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Tensão</span>
-                  <span className="text-white text-sm font-bold font-mono">{item.voltage}<span className="text-slate-500 text-xs ml-0.5">V</span></span>
+                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Tensão</span>
+                  <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.voltage}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">V</span></span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Corrente</span>
-                  <span className="text-blue-400 text-sm font-bold font-mono">{formatNum(item.amperes)}<span className="text-blue-500/50 text-xs ml-0.5">A</span></span>
+                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Corrente</span>
+                  <span className="text-blue-400 text-xs sm:text-sm font-bold font-mono">{formatNum(item.amperes)}<span className="text-blue-500/50 text-[10px] sm:text-xs ml-0.5">A</span></span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">F.P.</span>
-                  <span className="text-slate-300 text-sm font-bold font-mono">{formatNum(item.powerFactor)}</span>
+                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">F.P.</span>
+                  <span className="text-slate-300 text-xs sm:text-sm font-bold font-mono">{formatNum(item.powerFactor)}</span>
                 </div>
-                <div className="col-span-2 lg:col-span-1 lg:text-right">
-                  <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
-                  <span className="text-white text-sm font-bold bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{item.quantityOwned}</span>
+                <div className="col-span-2 md:col-span-1 lg:text-right mt-2 md:mt-0">
+                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
+                  <span className="text-white text-xs sm:text-sm font-bold bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-[2rem] inline-block text-center">{item.quantityOwned}</span>
                 </div>
 
                 {item.category === 'Painel de LED' && (

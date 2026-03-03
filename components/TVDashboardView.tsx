@@ -166,41 +166,41 @@ export function TVDashboardView() {
     }
 
     return (
-        <div ref={containerRef} className={`${isFullscreen ? 'bg-background p-6' : ''} min-h-[calc(100vh-120px)]`}>
+        <div ref={containerRef} className={`${isFullscreen ? 'bg-background p-6' : ''} min-h-[calc(100vh-120px)] overflow-x-hidden`}>
             {/* Header Bar */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl shadow-lg shadow-blue-500/20">
                         <Monitor className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black text-white tracking-tight">Painel de Controle</h1>
-                        <p className="text-xs text-slate-500 mt-0.5">Monitoramento em tempo real</p>
+                        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">Dashboard</h1>
+                        <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">Monitoramento em tempo real</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     {/* Live Clock */}
-                    <div className="bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2 flex items-center gap-3">
-                        <Clock className="w-4 h-4 text-blue-400" />
-                        <span className="text-white font-mono text-lg font-bold tabular-nums">{formatTime(currentTime)}</span>
-                        <span className="text-slate-500 text-xs">{currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
+                    <div className="bg-slate-800/80 border border-slate-700 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 flex-1 sm:flex-none justify-center">
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
+                        <span className="text-white font-mono text-base sm:text-lg font-bold tabular-nums">{formatTime(currentTime)}</span>
+                        <span className="hidden sm:inline text-slate-500 text-xs">{currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
                     </div>
                     {/* Last refresh */}
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                         Atualizado {formatTime(lastRefresh)}
                     </div>
-                    <button onClick={loadData} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Atualizar agora">
-                        <RefreshCw className="w-5 h-5" />
+                    <button onClick={loadData} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all ml-auto sm:ml-0" title="Atualizar agora">
+                        <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
-                    <button onClick={toggleFullscreen} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Tela cheia">
+                    <button onClick={toggleFullscreen} className="hidden sm:flex p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Tela cheia">
                         {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                     </button>
                 </div>
             </div>
 
             {/* Stats Cards Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
                 <StatCard icon={Calendar} label="Eventos Hoje" value={todayEvents.length} color="blue" />
                 <StatCard icon={Activity} label="Em Andamento" value={activeEvents.length} color="yellow" />
                 <StatCard icon={CheckCircle} label="Concluídos (mês)" value={completedThisMonth.length} color="emerald" />
@@ -457,38 +457,38 @@ function EventCard({ event, isNew, formatDate, statusColors, statusLabels }: { e
                     <Bell className="w-3.5 h-3.5" /> NOVO EVENTO
                 </div>
             )}
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-bold text-sm truncate">{event.name}</h4>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                    <h4 className="text-white font-bold text-xs sm:text-sm truncate leading-tight">{event.name}</h4>
+                    <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 mt-1">
                         {event.venue && (
-                            <span className="text-xs text-slate-400 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />{event.venue}
+                            <span className="text-[10px] sm:text-xs text-slate-400 flex items-center gap-1 truncate max-w-[120px] sm:max-w-none">
+                                <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" /><span className="truncate">{event.venue}</span>
                             </span>
                         )}
                         {event.clientName && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                                <User className="w-3 h-3" />{event.clientName}
+                            <span className="text-[10px] sm:text-xs text-slate-500 flex items-center gap-1 truncate max-w-[120px] sm:max-w-none">
+                                <User className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" /><span className="truncate">{event.clientName}</span>
                             </span>
                         )}
                     </div>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${statusColors[event.status]}`}>
+                <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border whitespace-nowrap shrink-0 ${statusColors[event.status]}`}>
                     {statusLabels[event.status]}
                 </span>
             </div>
-            <div className="flex items-center gap-4 mt-2 text-[11px] text-slate-400">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-[10px] sm:text-[11px] text-slate-400">
                 <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" /> {formatDate(event.startDate)} → {formatDate(event.endDate)}
+                    <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {formatDate(event.startDate)} → {formatDate(event.endDate)}
                 </span>
                 {event.equipmentAllocations && event.equipmentAllocations.length > 0 && (
                     <span className="flex items-center gap-1 text-blue-400">
-                        <Package className="w-3 h-3" /> {event.equipmentAllocations.reduce((s, a) => s + a.quantityAllocated, 0)} items
+                        <Package className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {event.equipmentAllocations.reduce((s, a) => s + a.quantityAllocated, 0)} items
                     </span>
                 )}
                 {event.setupTime && (
                     <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Mont: {event.setupTime}
+                        <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Mont: {event.setupTime}
                     </span>
                 )}
             </div>

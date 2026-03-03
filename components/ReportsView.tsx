@@ -130,7 +130,7 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
             // Logo / Title
             doc.setFontSize(24);
             doc.setTextColor(255, 255, 255);
-            doc.text("LightLoad Pro", 14, 20);
+            doc.text("StageFlow Pro", 14, 20);
 
             doc.setFontSize(10);
             doc.setTextColor(148, 163, 184); // Slate 400
@@ -433,7 +433,7 @@ export const ReportsView: React.FC<{ onEditDistribution?: (project: Distribution
                 doc.setPage(i);
                 doc.setFontSize(8);
                 doc.setTextColor(150, 150, 150);
-                doc.text(`Gerado por LightLoad Pro - Página ${i} de ${pageCount}`, 105, 290, { align: 'center' });
+                doc.text(`Gerado por StageFlow Pro - Página ${i} de ${pageCount}`, 105, 290, { align: 'center' });
             }
 
             doc.save(`Relatorio_${report.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);

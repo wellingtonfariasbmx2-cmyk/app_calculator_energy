@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench } from 'lucide-react';
+import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -18,6 +18,7 @@ import { EducationView } from './components/EducationView';
 import NotificationCenter from './components/NotificationCenter';
 import { TVDashboardView } from './components/TVDashboardView';
 import { MaintenanceView } from './components/MaintenanceView';
+import { EnergyHub } from './components/EnergyHub';
 
 export default function App() {
   return (
@@ -99,7 +100,7 @@ function StatusIndicator() {
 }
 
 function MainLayout() {
-  const [currentView, setCurrentView] = useState<ViewState>('calculator'); // Default=distribution
+  const [currentView, setCurrentView] = useState<ViewState>('tv-dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,15 +175,12 @@ function MainLayout() {
   // Navigations Items
   const navItems = [
     { id: 'events', label: 'Eventos', icon: Calendar },
-    { id: 'tv-dashboard', label: 'Painel TV', icon: Monitor },
+    { id: 'tv-dashboard', label: 'Dashboard', icon: Monitor },
     { id: 'availability', label: 'Disponibilidade', icon: TrendingUp },
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
     { id: 'maintenance', label: 'Manutenção', icon: Wrench },
-    { id: 'calculator', label: 'Calc. Rápido', icon: Calculator },
-    { id: 'distribution', label: 'Distribuição', icon: FolderKanban },
-    { id: 'power-system', label: 'Elétrica', icon: Activity },
+    { id: 'energy', label: 'Energia', icon: Activity },
     { id: 'reports', label: 'Relatórios', icon: FileText },
-    { id: 'education', label: 'Aprenda', icon: BookOpen },
   ];
 
   const renderView = () => {
@@ -217,32 +215,37 @@ function MainLayout() {
         return <div className="animate-fade-in"><EquipmentAvailabilityPanel /></div>;
       case 'equipments':
         return <div className="animate-fade-in"><EquipmentsView /></div>;
+      case 'energy':
       case 'calculator':
-        return <div className="animate-fade-in"><CalculatorView /></div>;
       case 'distribution':
         return (
           <div className="animate-fade-in">
-            <DistributionView
+            <EnergyHub
               initialProject={editingProject}
               onClearEdit={() => setEditingProject(null)}
             />
           </div>
         );
       case 'power-system':
-        return <div className="animate-fade-in"><PowerSystemView /></div>;
+        return (
+          <div className="animate-fade-in">
+            <EnergyHub
+              initialProject={editingProject}
+              onClearEdit={() => setEditingProject(null)}
+            />
+          </div>
+        );
       case 'reports':
         return (
           <div className="animate-fade-in">
             <ReportsView
               onEditDistribution={(project) => {
                 setEditingProject(project);
-                setCurrentView('distribution');
+                setCurrentView('energy');
               }}
             />
           </div>
         );
-      case 'education':
-        return <div className="animate-fade-in"><EducationView /></div>;
       case 'tv-dashboard':
         return <div className="animate-fade-in"><TVDashboardView /></div>;
       case 'maintenance':
@@ -271,27 +274,27 @@ function MainLayout() {
           <div className="flex justify-between items-center h-16">
 
             {/* Mobile Menu Button + Logo */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Hamburger Menu - Mobile Only */}
               <button
                 onClick={() => setIsDrawerOpen(true)}
-                className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors active:scale-95"
+                className="md:hidden p-1.5 sm:p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors active:scale-95"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
               {/* Logo Area */}
-              <div className="flex items-center gap-3 group cursor-default">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all duration-300 group-hover:scale-105">
-                  <Zap className="w-5 h-5 text-white fill-current animate-pulse" />
+              <div className="flex items-center gap-2 sm:gap-3 group cursor-default">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300 group-hover:scale-105 shrink-0">
+                  <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-white" strokeWidth={2.5} />
                 </div>
-                <div className="leading-tight">
-                  <h1 className="text-white font-bold text-lg tracking-tight group-hover:text-blue-400 transition-colors">LightLoad Pro</h1>
+                <div className="leading-tight min-w-0">
+                  <h1 className="text-white font-bold text-base sm:text-lg tracking-tight group-hover:text-cyan-400 transition-colors truncate">Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></h1>
                   <div className="hidden sm:flex items-center gap-2">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors truncate max-w-[100px] lg:max-w-[200px]">
                       {session.user.email?.split('@')[0]}
                     </p>
-                    <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors" title="Sair">
+                    <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors shrink-0" title="Sair">
                       <LogOut className="w-3 h-3" />
                     </button>
                   </div>
@@ -311,11 +314,11 @@ function MainLayout() {
                     className={`
                       px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2
                       ${isActive
-                        ? 'bg-blue-600/10 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)] border border-blue-500/20'
+                        ? 'bg-cyan-600/10 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)] border border-cyan-500/20'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:scale-105'}
                     `}
                   >
-                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-400 fill-blue-400/20' : 'text-slate-500 group-hover:text-white'}`} />
+                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-cyan-400 fill-cyan-400/20' : 'text-slate-500 group-hover:text-white'}`} />
                     {item.label}
                   </button>
                 );
@@ -340,7 +343,7 @@ function MainLayout() {
       </nav>
 
       {/* Main Content Area */}
-      <main className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-12 min-h-[calc(100vh-80px)]">
+      <main className="pt-20 sm:pt-24 px-2 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-20 sm:pb-12 min-h-[calc(100vh-80px)] overflow-x-hidden">
         {renderView()}
       </main>
     </div>

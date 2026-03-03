@@ -150,7 +150,7 @@ async function sendBrowserNotification(title: string, body: string, tag?: string
         return;
     }
 
-    const notifTag = tag || 'lightload-' + Date.now();
+    const notifTag = tag || 'stageflow-' + Date.now();
     const notifOptions: any = {
         body,
         icon: 'https://cdn-icons-png.flaticon.com/512/427/427735.png',

@@ -296,7 +296,7 @@ export function EducationView() {
             >
                 <div className="space-y-5">
                     <p className="text-slate-200 leading-relaxed text-lg">
-                        O LightLoad Pro faz todo o <strong className="text-blue-400">trabalho pesado</strong> pra você! Veja o que acontece nos bastidores:
+                        O StageFlow Pro faz todo o <strong className="text-blue-400">trabalho pesado</strong> pra você! Veja o que acontece nos bastidores:
                     </p>
 
                     <div className="space-y-4">
@@ -534,7 +534,7 @@ export function EducationView() {
             >
                 <div className="space-y-4">
                     <p className="text-slate-200 leading-relaxed text-lg">
-                        O LightLoad Pro segue as <strong className="text-blue-400">normas oficiais brasileiras</strong>. Isso garante que seus cálculos são <strong>seguros e profissionais</strong>!
+                        O StageFlow Pro segue as <strong className="text-blue-400">normas oficiais brasileiras</strong>. Isso garante que seus cálculos são <strong>seguros e profissionais</strong>!
                     </p>
 
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-5">
@@ -691,13 +691,13 @@ export function EducationView() {
                                 key={item.key}
                                 onClick={() => toggleCheckItem(item.key)}
                                 className={`w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3 ${safetyChecklist[item.key]
-                                        ? 'bg-emerald-900/20 border-emerald-500/40 text-emerald-300'
-                                        : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-600'
+                                    ? 'bg-emerald-900/20 border-emerald-500/40 text-emerald-300'
+                                    : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-600'
                                     }`}
                             >
                                 <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${safetyChecklist[item.key]
-                                        ? 'bg-emerald-500 border-emerald-500'
-                                        : 'border-slate-600'
+                                    ? 'bg-emerald-500 border-emerald-500'
+                                    : 'border-slate-600'
                                     }`}>
                                     {safetyChecklist[item.key] && <CheckCircle className="w-4 h-4 text-white" />}
                                 </div>

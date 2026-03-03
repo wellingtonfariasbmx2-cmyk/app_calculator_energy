@@ -136,6 +136,7 @@ export interface MaintenanceRecord {
   id: string;
   equipmentId: string;
   equipment?: Equipment; // Loaded via join
+  equipmentNumber?: string; // Número ou serial exato do aparelho
   type: 'preventive' | 'corrective' | 'replacement';
   description: string;
   status: 'pending' | 'in_progress' | 'completed';

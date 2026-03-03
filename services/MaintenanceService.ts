@@ -167,6 +167,7 @@ export const MaintenanceService = {
                 panelHeight: eq.panel_height,
                 panelsPerCase: eq.panels_per_case,
             } as Equipment : undefined,
+            equipmentNumber: dbItem.equipment_number,
             type: dbItem.type,
             description: dbItem.description,
             status: dbItem.status,
@@ -187,6 +188,7 @@ export const MaintenanceService = {
     mapToDb(record: Partial<MaintenanceRecord>): any {
         const result: any = {};
         if (record.equipmentId !== undefined) result.equipment_id = record.equipmentId;
+        if (record.equipmentNumber !== undefined) result.equipment_number = record.equipmentNumber;
         if (record.type !== undefined) result.type = record.type;
         if (record.description !== undefined) result.description = record.description;
         if (record.status !== undefined) result.status = record.status;

@@ -443,29 +443,29 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             >
                                 {/* Header */}
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex-1">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-3">
+                                    <div className="flex-1 w-full sm:w-auto">
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h3 className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors">
+                                            <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-purple-400 transition-colors break-words leading-tight">
                                                 {event.name}
                                             </h3>
                                             {getStatusBadge(event.status)}
                                             {proximity && (
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${proximity.color}`}>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${proximity.color} shrink-0`}>
                                                     {proximity.label}
                                                 </span>
                                             )}
                                         </div>
                                         {event.clientName && (
-                                            <p className="text-sm text-slate-400 flex items-center gap-1">
-                                                <Users className="w-3.5 h-3.5" />
-                                                {event.clientName}
+                                            <p className="text-xs sm:text-sm text-slate-400 flex items-center gap-1.5 mt-1 font-medium">
+                                                <Users className="w-3.5 h-3.5 shrink-0" />
+                                                <span className="truncate">{event.clientName}</span>
                                             </p>
                                         )}
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity self-end sm:self-start w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-700/50 pt-2 sm:pt-0 mt-2 sm:mt-0">
                                         {event.status === 'planned' && (
                                             <button
                                                 onClick={(e) => {
@@ -514,18 +514,18 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                                 </div>
 
                                 {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-3 border-t border-slate-800/50 pt-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800/50 pt-3">
                                     <div>
                                         <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Local</span>
-                                        <span className="text-sm text-white flex items-center gap-1">
-                                            <MapPin className="w-3.5 h-3.5 text-purple-400" />
-                                            {event.venue}
+                                        <span className="text-xs sm:text-sm text-white flex items-center gap-1.5 font-medium">
+                                            <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                            <span className="truncate">{event.venue}</span>
                                         </span>
                                     </div>
                                     <div>
                                         <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Data</span>
-                                        <span className="text-sm text-white flex items-center gap-1">
-                                            <Clock className="w-3.5 h-3.5 text-purple-400" />
+                                        <span className="text-xs sm:text-sm text-white flex items-center gap-1.5 font-medium">
+                                            <Clock className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                                             {formatDate(event.startDate)}
                                         </span>
                                     </div>

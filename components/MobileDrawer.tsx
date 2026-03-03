@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Zap } from 'lucide-react';
+import { X, Layers } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface MobileDrawerProps {
@@ -52,11 +52,11 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 <div className="p-4 border-b border-slate-700 bg-slate-900/50">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                <Zap className="w-6 h-6 text-white fill-current" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                                <Layers className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
                             <div>
-                                <h2 className="text-white font-bold text-lg">LightLoad Pro</h2>
+                                <h2 className="text-white font-bold text-lg">Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></h2>
                                 <p className="text-xs text-slate-400">{userEmail?.split('@')[0]}</p>
                             </div>
                         </div>
@@ -81,15 +81,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                                 className={`
                   w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                   ${isActive
-                                        ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-lg shadow-blue-500/10'
+                                        ? 'bg-cyan-600/10 text-cyan-400 border border-cyan-500/20 shadow-lg shadow-cyan-500/10'
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                                     }
                 `}
                             >
-                                <Icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                                <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
                                 <span className="font-medium text-sm">{item.label}</span>
                                 {isActive && (
-                                    <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                                    <div className="ml-auto w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
                                 )}
                             </button>
                         );

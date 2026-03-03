@@ -1,4 +1,4 @@
-# ⚡ LightLoad Pro
+# 🎯 StageFlow Pro
 
 Sistema profissional de cálculo de consumo de energia para equipamentos de iluminação e eventos.
 

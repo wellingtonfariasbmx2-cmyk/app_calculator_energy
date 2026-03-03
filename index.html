@@ -3,24 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0B1121" />
-    <meta name="description" content="LightLoad Pro - Planejamento de Carga Elétrica" />
+    <meta name="theme-color" content="#080F1D" />
+    <meta name="description" content="StageFlow Pro - Gestão Inteligente de Eventos & Produção Técnica" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/427/427735.png" />
-    <title>LightLoad Pro</title>
+    <title>StageFlow Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              background: '#0B1121', // Darker navy background
-              surface: '#151E32',    // Card background
-              surfaceHover: '#1E293B',
-              primary: '#3B82F6',    // Bright Blue
-              primaryHover: '#2563EB',
+              background: '#080F1D',
+              surface: '#0F1729',
+              surfaceHover: '#1A2540',
+              primary: '#06B6D4',
+              primaryHover: '#0891B2',
               secondary: '#64748B',
-              accent: '#10B981',     // Green for status
+              accent: '#10B981',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
             }
           }
         }
@@ -28,8 +34,9 @@
     </script>
     <style>
       body {
-        background-color: #0B1121;
+        background-color: #080F1D;
         color: #E2E8F0;
+        font-family: 'Inter', system-ui, sans-serif;
         -webkit-tap-highlight-color: transparent;
       }
       /* Custom Scrollbar for dark theme */
@@ -38,7 +45,7 @@
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #0B1121; 
+        background: #080F1D; 
       }
       ::-webkit-scrollbar-thumb {
         background: #334155; 

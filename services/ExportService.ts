@@ -221,7 +221,7 @@ export const ExportService = {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 28);
-        doc.text('LightLoad PRO', pageWidth - margin, 28, { align: 'right' });
+        doc.text('StageFlow PRO', pageWidth - margin, 28, { align: 'right' });
         y = 45;
 
         // ===== EVENT NAME & STATUS =====
@@ -377,7 +377,7 @@ export const ExportService = {
             doc.line(margin, 285, pageWidth - margin, 285);
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
-            doc.text(`LightLoad PRO • Relatório do Evento`, margin, 291);
+            doc.text(`StageFlow PRO • Relatório do Evento`, margin, 291);
             doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, 291, { align: 'right' });
         }
 

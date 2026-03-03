@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Cable, FileText, Activity, BookOpen, ChevronRight, Sparkles, TrendingUp, Shield, Music, Lightbulb, Users, CheckCircle } from 'lucide-react';
+import { Layers, Cable, FileText, Activity, BookOpen, ChevronRight, Sparkles, TrendingUp, Shield, Music, Lightbulb, Users, CheckCircle } from 'lucide-react';
 
 interface LandingPageProps {
     onEnter: () => void;
@@ -26,17 +26,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                     <div className="max-w-6xl mx-auto text-center space-y-8">
                         {/* Badge */}
                         <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-full text-purple-300 text-sm font-bold uppercase tracking-wider backdrop-blur-sm">
-                            <Music className="w-5 h-5" />
-                            <span>LightLoad Pro</span>
+                            <Layers className="w-5 h-5" />
+                            <span>StageFlow Pro</span>
                             <span className="text-xs bg-emerald-500/20 px-2 py-0.5 rounded-full text-emerald-400">Para Eventos</span>
                         </div>
 
                         {/* Main Heading */}
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight">
-                            <span className="block bg-gradient-to-r from-white via-purple-100 to-pink-200 bg-clip-text text-transparent">
-                                Distribuição Elétrica
+                            <span className="block bg-gradient-to-r from-white via-purple-100 to-cyan-200 bg-clip-text text-transparent">
+                                Gestão Completa
                             </span>
-                            <span className="block bg-gradient-to-r from-purple-400 via-pink-500 to-rose-600 bg-clip-text text-transparent">
+                            <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
                                 Para Shows e Eventos
                             </span>
                         </h1>
@@ -44,9 +44,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         {/* Subtitle */}
                         <p className="text-xl sm:text-2xl text-slate-300 max-w-4xl mx-auto leading-relaxed">
                             <Lightbulb className="inline w-7 h-7 text-yellow-400 mr-2" />
-                            Sistema profissional para calcular carga de <strong className="text-white">iluminação</strong>,
-                            <strong className="text-white"> som</strong>, <strong className="text-white">vídeo</strong> e gerar
-                            <strong className="text-white"> mapas de energia</strong> completos
+                            Sistema profissional para <strong className="text-white">gestão de eventos</strong>,
+                            <strong className="text-white">equipamentos</strong>, <strong className="text-white">manutenção</strong> e
+                            <strong className="text-white">cálculo de energia</strong> completo
                         </p>
 
                         {/* Use Cases */}
@@ -75,7 +75,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                                 onClick={onEnter}
                                 className="group px-10 py-5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-2xl font-bold text-xl shadow-2xl shadow-purple-500/30 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-3"
                             >
-                                <Zap className="w-6 h-6" />
+                                <Layers className="w-6 h-6" />
                                 <span>Acessar Plataforma</span>
                                 <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                             </button>
@@ -221,14 +221,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                                 </span>
                             </h2>
                             <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-                                Tudo que você precisa para distribuição elétrica em eventos
+                                Tudo que você precisa para gerenciar seus eventos
                             </p>
                         </div>
 
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {[
                                 {
-                                    icon: Zap,
+                                    icon: Sparkles,
                                     title: "Cálculo Preciso",
                                     desc: "Calcule watts, amperes e VA de moving heads, LEDs, amplificadores e qualquer equipamento.",
                                     color: "purple"
@@ -288,13 +288,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                             </span>
                         </h2>
                         <p className="text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-                            Junte-se aos técnicos e produtores que já usam LightLoad Pro em eventos pelo Brasil.
+                            Junte-se aos técnicos e produtores que já usam StageFlow Pro em eventos pelo Brasil.
                         </p>
                         <button
                             onClick={onEnter}
                             className="group px-12 py-6 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-500 hover:via-pink-500 hover:to-rose-500 rounded-2xl font-bold text-2xl shadow-2xl shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 inline-flex items-center gap-4"
                         >
-                            <Zap className="w-8 h-8" />
+                            <Layers className="w-8 h-8" />
                             <span>Começar Gratuitamente</span>
                             <ChevronRight className="w-8 h-8 group-hover:translate-x-2 transition-transform" />
                         </button>
@@ -308,12 +308,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 <div className="border-t border-slate-800/50 bg-slate-950 py-10 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
-                                <Zap className="w-5 h-5 text-white" />
+                            <div className="p-2 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg">
+                                <Layers className="w-5 h-5 text-white" />
                             </div>
                             <div className="text-left">
-                                <div className="font-bold text-white">LightLoad Pro</div>
-                                <div className="text-sm text-slate-400">Distribuição Elétrica para Eventos</div>
+                                <div className="font-bold text-white">StageFlow Pro</div>
+                                <div className="text-sm text-slate-400">Gestão Inteligente de Eventos</div>
                             </div>
                         </div>
                         <div className="flex items-center gap-6 text-sm text-slate-500">

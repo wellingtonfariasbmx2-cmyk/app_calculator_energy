@@ -15,7 +15,7 @@ import { getCableSpecs, getCableColorClass } from '../utils/cableCalculations';
 import { LoadingScreen } from './LoadingScreen';
 import { ErrorScreen } from './ErrorScreen';
 
-const STORAGE_KEY = 'lightload_distribution_state';
+const STORAGE_KEY = 'stageflow_distribution_state';
 
 const PORT_COLORS = [
    { label: 'Cinza', value: '#334155', bg: 'bg-slate-700' },

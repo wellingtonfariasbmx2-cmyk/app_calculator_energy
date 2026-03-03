@@ -1,6 +1,6 @@
 
-const CACHE_NAME = 'lightload-pro-v1';
-const DYNAMIC_CACHE_NAME = 'lightload-dynamic-v1';
+const CACHE_NAME = 'stageflow-pro-v3';
+const DYNAMIC_CACHE_NAME = 'stageflow-dynamic-v3';
 
 // Assets fundamentais para o app shell
 const PRECACHE_ASSETS = [
@@ -23,14 +23,14 @@ self.addEventListener('install', (event) => {
 
 // Recebe push do servidor (para uso futuro com VAPID)
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() || { title: 'LightLoad Pro', body: 'Nova atualização' };
+  const data = event.data?.json() || { title: 'StageFlow Pro', body: 'Nova atualização' };
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: 'https://cdn-icons-png.flaticon.com/512/427/427735.png',
       badge: 'https://cdn-icons-png.flaticon.com/512/427/427735.png',
       vibrate: [200, 100, 200],
-      tag: data.tag || 'lightload-default',
+      tag: data.tag || 'stageflow-default',
       data: { url: data.url || '/' }
     })
   );
@@ -59,7 +59,7 @@ self.addEventListener('message', (event) => {
       icon: 'https://cdn-icons-png.flaticon.com/512/427/427735.png',
       badge: 'https://cdn-icons-png.flaticon.com/512/427/427735.png',
       vibrate: [200, 100, 200],
-      tag: event.data.tag || 'lightload-' + Date.now(),
+      tag: event.data.tag || 'stageflow-' + Date.now(),
       data: { url: '/' }
     });
   }
