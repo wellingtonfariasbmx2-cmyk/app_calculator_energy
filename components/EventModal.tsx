@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, MapPin, Users, Clock, Plus, Minus, Trash2, AlertCircle, CheckCircle, Package, Search, Zap, Activity } from 'lucide-react';
+import { X, Save, Calendar, MapPin, Users, Clock, Plus, Minus, Trash2, AlertCircle, CheckCircle, Package, Search, Zap, Activity, ChevronRight, ChevronLeft, FileText, Check } from 'lucide-react';
 import { Event, Equipment, EquipmentAllocation } from '../types';
 import { EventService } from '../services/EventService';
 import { DataService } from '../services/supabaseClient';
@@ -12,7 +12,14 @@ interface EventModalProps {
     event?: Event | null;
 }
 
+const STEPS = [
+    { id: 1, title: 'Informações', icon: FileText, description: 'Dados básicos do evento' },
+    { id: 2, title: 'Datas', icon: Calendar, description: 'Datas e horários' },
+    { id: 3, title: 'Equipamentos', icon: Package, description: 'Seleção de equipamentos' },
+];
+
 export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event }) => {
+    const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<Partial<Event>>({
         name: '',
         clientName: '',
@@ -32,7 +39,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     const [availabilityMap, setAvailabilityMap] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [isEquipPopupOpen, setIsEquipPopupOpen] = useState(false);
+    const [editingQty, setEditingQty] = useState<Record<string, string>>({});
+    const [triedNext, setTriedNext] = useState<Set<number>>(new Set());
 
     // LED Panel Calc State
     const [isLEDCalcOpen, setIsLEDCalcOpen] = useState(false);
@@ -63,8 +71,10 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                     technicalResponsible: event.technicalResponsible,
                 });
                 setSelectedEquipments(event.equipmentAllocations || []);
+                setCurrentStep(1);
             } else {
                 resetForm();
+                setCurrentStep(1);
             }
         } else {
             document.body.style.overflow = '';
@@ -79,7 +89,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         if (formData.startDate && formData.endDate) {
             checkAvailability();
         } else {
-            // Se as datas não estiverem definidas, mostra o total em estoque como disponível
             const map: Record<string, number> = {};
             equipments.forEach(eq => {
                 map[eq.id] = eq.quantityOwned;
@@ -95,23 +104,15 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
     const checkAvailability = async () => {
         const map: Record<string, number> = {};
-
-        // Inicializa com o estoque total primeiro (fallback)
         equipments.forEach(eq => {
             map[eq.id] = eq.quantityOwned;
         });
 
-        // Se o Supabase estiver disponível, busca a disponibilidade real
         try {
-            // Se as datas não estiverem selecionadas, não faz sentido consultar o banco por conflitos
             if (!formData.startDate || !formData.endDate) return;
-
             for (const eq of equipments) {
                 try {
                     const available = await EventService.checkAvailability(eq.id, event?.id);
-
-                    // Se o item for encontrado no banco (available != -1), atualiza a disponibilidade.
-                    // Caso contrário, mantém o fallback (estoque total configurado no cadastro).
                     if (available !== -1) {
                         map[eq.id] = available;
                     }
@@ -150,7 +151,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
             return;
         }
 
-        // Verificar disponibilidade ANTES de adicionar
         const available = availabilityMap[equipment.id] || 0;
         if (available <= 0) {
             showError(`${equipment.name} não está disponível no momento`);
@@ -217,8 +217,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         const h = activeLEDEquip.panelHeight || 1.0;
 
         const plates = Math.ceil(area / (w * h));
-
-        // Check availability
         const available = availabilityMap[activeLEDEquip.id] || 0;
         const finalPlates = Math.min(plates, available);
 
@@ -245,15 +243,36 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         success(`${finalPlates} placas aplicadas (${area}m²)`);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Step validation
+    const canProceedStep1 = !!(formData.name && formData.venue);
+    const canProceedStep2 = !!(formData.startDate && formData.endDate);
 
+    const handleNext = () => {
+        if (currentStep === 1 && !canProceedStep1) {
+            setTriedNext(prev => new Set(prev).add(1));
+            return;
+        }
+        if (currentStep === 2 && !canProceedStep2) {
+            setTriedNext(prev => new Set(prev).add(2));
+            return;
+        }
+        setTriedNext(prev => { const next = new Set(prev); next.delete(currentStep); return next; });
+        if (currentStep < 3) setCurrentStep(currentStep + 1);
+    };
+
+    const handleBack = () => {
+        setTriedNext(prev => { const next = new Set(prev); next.delete(currentStep); return next; });
+        if (currentStep > 1) setCurrentStep(currentStep - 1);
+    };
+
+    const showFieldError = (step: number, fieldEmpty: boolean) => triedNext.has(step) && fieldEmpty;
+
+    const handleSubmit = async () => {
         if (!formData.name || !formData.venue || !formData.startDate || !formData.endDate) {
             showError('Preencha todos os campos obrigatórios');
             return;
         }
 
-        // Validar disponibilidade
         for (const alloc of selectedEquipments) {
             const available = availabilityMap[alloc.equipmentId] || 0;
             if (available < alloc.quantityAllocated) {
@@ -266,7 +285,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         try {
             const eventData: Partial<Event> = {
                 ...formData,
-                // Enviar como meio-dia para evitar que a conversão de timezone mude o dia
                 startDate: formData.startDate!.includes('T') ? formData.startDate! : formData.startDate! + 'T12:00:00',
                 endDate: formData.endDate!.includes('T') ? formData.endDate! : formData.endDate! + 'T12:00:00',
                 equipmentAllocations: selectedEquipments,
@@ -304,12 +322,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     return (
         <>
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
-                <div className="bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
+                <div className={`bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full ${currentStep === 3 ? 'max-w-3xl' : 'max-w-2xl'} shadow-2xl animate-in zoom-in-95 duration-200 my-auto h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col transition-all`}>
                     {/* Header */}
-                    <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
-                        <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                    <div className="flex justify-between items-center p-3 sm:p-5 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
+                        <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                             <div className="p-1 sm:p-1.5 bg-purple-600 rounded-lg">
-                                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                <Calendar className="w-4 h-4 text-white" />
                             </div>
                             {event ? 'Editar Evento' : 'Novo Evento'}
                         </h2>
@@ -318,27 +336,69 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                         </button>
                     </div>
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-                        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-                            {/* Informações Básicas */}
-                            <div>
-                                <h3 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-purple-400" />
-                                    Informações do Evento
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Evento *</label>
-                                        <input
-                                            required
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 outline-none transition-all"
-                                            value={formData.name}
-                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                            placeholder="Ex: Show de Rock, Casamento, Conferência..."
-                                        />
-                                    </div>
+                    {/* Stepper */}
+                    <div className="px-3 sm:px-5 pt-4 pb-2">
+                        <div className="flex items-center justify-between">
+                            {STEPS.map((step, index) => {
+                                const isActive = currentStep === step.id;
+                                const isCompleted = currentStep > step.id;
+                                const StepIcon = step.icon;
 
+                                return (
+                                    <React.Fragment key={step.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (isCompleted || isActive) setCurrentStep(step.id);
+                                            }}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-left ${isActive
+                                                ? 'bg-purple-600/20 border border-purple-500/40'
+                                                : isCompleted
+                                                    ? 'bg-emerald-600/10 border border-emerald-500/20 cursor-pointer hover:bg-emerald-600/20'
+                                                    : 'bg-slate-800/50 border border-slate-700/50 opacity-50'
+                                                }`}
+                                        >
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive
+                                                ? 'bg-purple-600 text-white'
+                                                : isCompleted
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-700 text-slate-400'
+                                                }`}>
+                                                {isCompleted ? <Check className="w-4 h-4" /> : <StepIcon className="w-3.5 h-3.5" />}
+                                            </div>
+                                            <div className="hidden sm:block">
+                                                <p className={`text-xs font-bold ${isActive ? 'text-purple-300' : isCompleted ? 'text-emerald-400' : 'text-slate-500'}`}>{step.title}</p>
+                                                <p className="text-[10px] text-slate-500">{step.description}</p>
+                                            </div>
+                                        </button>
+                                        {index < STEPS.length - 1 && (
+                                            <div className={`flex-1 h-0.5 mx-2 rounded ${isCompleted ? 'bg-emerald-500/50' : 'bg-slate-700/50'}`} />
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Step Content */}
+                    <div className="overflow-y-auto flex-1 p-3 sm:p-5">
+                        {/* === STEP 1: Informações === */}
+                        {currentStep === 1 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div>
+                                    <label className={`block text-xs font-bold uppercase mb-1.5 ${showFieldError(1, !formData.name) ? 'text-red-400' : 'text-slate-400'}`}>Nome do Evento *</label>
+                                    <input
+                                        autoFocus
+                                        required
+                                        className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white outline-none transition-all ${showFieldError(1, !formData.name) ? 'border-red-500 focus:border-red-400 ring-1 ring-red-500/30' : 'border-slate-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50'}`}
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="Ex: Show de Rock, Casamento, Conferência..."
+                                    />
+                                    {showFieldError(1, !formData.name) && <p className="text-red-400 text-[11px] mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Preencha o nome do evento</p>}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Cliente</label>
                                         <input
@@ -348,7 +408,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             placeholder="Nome do cliente"
                                         />
                                     </div>
-
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Responsável Técnico</label>
                                         <input
@@ -358,50 +417,61 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             placeholder="Nome do responsável"
                                         />
                                     </div>
+                                </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Local *</label>
-                                        <input
-                                            required
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
-                                            value={formData.venue}
-                                            onChange={e => setFormData({ ...formData, venue: e.target.value })}
-                                            placeholder="Ex: Teatro Municipal, Clube..."
-                                        />
-                                    </div>
+                                <div>
+                                    <label className={`block text-xs font-bold uppercase mb-1.5 ${showFieldError(1, !formData.venue) ? 'text-red-400' : 'text-slate-400'}`}>Local *</label>
+                                    <input
+                                        required
+                                        className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white outline-none transition-all ${showFieldError(1, !formData.venue) ? 'border-red-500 focus:border-red-400 ring-1 ring-red-500/30' : 'border-slate-700 focus:border-purple-500'}`}
+                                        value={formData.venue}
+                                        onChange={e => setFormData({ ...formData, venue: e.target.value })}
+                                        placeholder="Ex: Teatro Municipal, Clube..."
+                                    />
+                                    {showFieldError(1, !formData.venue) && <p className="text-red-400 text-[11px] mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Preencha o local do evento</p>}
+                                </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Endereço</label>
-                                        <input
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
-                                            value={formData.address}
-                                            onChange={e => setFormData({ ...formData, address: e.target.value })}
-                                            placeholder="Endereço completo"
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Endereço</label>
+                                    <input
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
+                                        value={formData.address}
+                                        onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                        placeholder="Endereço completo"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
+                        {/* === STEP 2: Datas e Horários === */}
+                        {currentStep === 2 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Data Início *</label>
+                                        <label className={`block text-xs font-bold uppercase mb-1.5 ${showFieldError(2, !formData.startDate) ? 'text-red-400' : 'text-slate-400'}`}>Data Início *</label>
                                         <input
                                             required
                                             type="date"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
+                                            className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white outline-none transition-all ${showFieldError(2, !formData.startDate) ? 'border-red-500 focus:border-red-400 ring-1 ring-red-500/30' : 'border-slate-700 focus:border-purple-500'}`}
                                             value={formData.startDate}
                                             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
                                         />
+                                        {showFieldError(2, !formData.startDate) && <p className="text-red-400 text-[11px] mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Selecione a data de início</p>}
                                     </div>
-
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Data Término *</label>
+                                        <label className={`block text-xs font-bold uppercase mb-1.5 ${showFieldError(2, !formData.endDate) ? 'text-red-400' : 'text-slate-400'}`}>Data Término *</label>
                                         <input
                                             required
                                             type="date"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
+                                            className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white outline-none transition-all ${showFieldError(2, !formData.endDate) ? 'border-red-500 focus:border-red-400 ring-1 ring-red-500/30' : 'border-slate-700 focus:border-purple-500'}`}
                                             value={formData.endDate}
                                             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                         />
+                                        {showFieldError(2, !formData.endDate) && <p className="text-red-400 text-[11px] mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Selecione a data de término</p>}
                                     </div>
+                                </div>
 
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Horário Montagem</label>
                                         <input
@@ -411,7 +481,6 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             onChange={e => setFormData({ ...formData, setupTime: e.target.value })}
                                         />
                                     </div>
-
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Horário Evento</label>
                                         <input
@@ -421,269 +490,287 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             onChange={e => setFormData({ ...formData, eventTime: e.target.value })}
                                         />
                                     </div>
+                                </div>
 
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Observações</label>
-                                        <textarea
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all resize-none"
-                                            rows={3}
-                                            value={formData.notes}
-                                            onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                                            placeholder="Notas adicionais sobre o evento..."
-                                        />
+                                {event && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Status</label>
+                                        <select
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all"
+                                            value={formData.status}
+                                            onChange={e => setFormData({ ...formData, status: e.target.value as Event['status'] })}
+                                        >
+                                            <option value="planned">Planejado</option>
+                                            <option value="in_progress">Em Andamento</option>
+                                            <option value="completed">Concluído</option>
+                                            <option value="cancelled">Cancelado</option>
+                                        </select>
                                     </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Observações</label>
+                                    <textarea
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-all resize-none"
+                                        rows={3}
+                                        value={formData.notes}
+                                        onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                                        placeholder="Notas adicionais sobre o evento..."
+                                    />
                                 </div>
                             </div>
+                        )}
 
-                            {/* Equipamentos — Resumo Compacto + Botão Popup */}
-                            <div className="border-t border-slate-700/50 pt-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
-                                        <Package className="w-4 h-4 text-purple-400" />
-                                        Equipamentos ({selectedEquipments.length})
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setSearchQuery(''); setIsEquipPopupOpen(true); }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        Adicionar Equipamento
-                                    </button>
+                        {/* === STEP 3: Equipamentos === */}
+                        {currentStep === 3 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                {/* Search bar */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nome, marca ou modelo..."
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:border-emerald-500 outline-none transition-all placeholder-slate-500"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                    />
                                 </div>
 
-                                {/* Resumo dos equipamentos selecionados */}
-                                {selectedEquipments.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {selectedEquipments.map(alloc => {
-                                            const availability = getAvailabilityStatus(alloc.equipmentId, alloc.quantityAllocated);
-                                            const available = availabilityMap[alloc.equipmentId] || 0;
+                                {/* Selected Equipment Summary Bar */}
+                                {selectedEquipments.length > 0 && (
+                                    <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                                        <span className="text-purple-300 text-xs font-bold">{selectedEquipments.length} equipamento(s) • {totalItems} unidades</span>
+                                        <span className="text-yellow-400 text-xs font-bold flex items-center gap-1">
+                                            <Zap className="w-3 h-3" />
+                                            {totalWatts >= 1000 ? `${(totalWatts / 1000).toFixed(1)}kW` : `${totalWatts}W`}
+                                        </span>
+                                    </div>
+                                )}
 
+                                {/* Equipment Cards - Grouped by Category */}
+                                <div className="space-y-5 max-h-[50vh] overflow-y-auto pr-1">
+                                    {(() => {
+                                        const categoryOrder = ['Painel de LED', 'Moving Head', 'Par Led', 'Blinder', 'Strobo', 'Console', 'Outros'];
+                                        const categoryIcons: Record<string, string> = {
+                                            'Painel de LED': '📺', 'Moving Head': '💡', 'Par Led': '🔦',
+                                            'Blinder': '⚡', 'Strobo': '✨', 'Console': '🎛️', 'Outros': '📦'
+                                        };
+                                        const grouped = filteredEquipments.reduce((acc, eq) => {
+                                            const cat = eq.category || 'Outros';
+                                            if (!acc[cat]) acc[cat] = [];
+                                            acc[cat].push(eq);
+                                            return acc;
+                                        }, {} as Record<string, Equipment[]>);
+
+                                        const sortedCategories = categoryOrder.filter(c => grouped[c]);
+
+                                        if (sortedCategories.length === 0) {
                                             return (
-                                                <div key={alloc.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-white font-medium text-sm truncate">{alloc.equipment?.name}</p>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-xs text-slate-500">{alloc.equipment?.brand}</span>
-                                                            <span className="text-xs text-yellow-400 flex items-center gap-0.5">
-                                                                <Zap className="w-3 h-3" />{alloc.equipment?.watts}W
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t border-slate-800 sm:border-0">
-                                                        <div className="flex items-center gap-1 bg-slate-800 rounded-lg border border-slate-700">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleUpdateQuantity(alloc.id, alloc.quantityAllocated - 1)}
-                                                                disabled={alloc.quantityAllocated <= 1}
-                                                                className="px-2 py-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                <Minus className="w-3.5 h-3.5" />
-                                                            </button>
-                                                            <span className="text-white text-sm font-bold w-8 text-center">{alloc.quantityAllocated}</span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleUpdateQuantity(alloc.id, alloc.quantityAllocated + 1)}
-                                                                disabled={alloc.quantityAllocated >= available}
-                                                                className="px-2 py-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                <Plus className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        </div>
-                                                        <span className={`text-xs font-bold ${availability.color}`}>
-                                                            {available} disp.
-                                                        </span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveEquipment(alloc.id)}
-                                                            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
+                                                <div className="text-center py-8 text-slate-500">
+                                                    <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                                    <p className="font-medium">Nenhum equipamento encontrado</p>
+                                                    <p className="text-xs mt-1">Tente outro termo de busca</p>
                                                 </div>
                                             );
-                                        })}
-                                        {/* Total bar */}
-                                        <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 flex items-center justify-between">
-                                            <span className="text-purple-300 text-xs font-bold">Total: {totalItems} unidades</span>
-                                            <span className="text-yellow-400 text-xs font-bold flex items-center gap-1">
-                                                <Zap className="w-3 h-3" />
-                                                {totalWatts >= 1000 ? `${(totalWatts / 1000).toFixed(1)}kW` : `${totalWatts}W`}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-6 border border-dashed border-slate-700 rounded-lg">
-                                        <Package className="w-10 h-10 mx-auto mb-2 text-slate-600" />
-                                        <p className="text-slate-500 text-sm">Nenhum equipamento selecionado</p>
-                                        <p className="text-slate-600 text-xs mt-1">Clique em "Adicionar Equipamento" para selecionar</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                                        }
 
-                        {/* Footer */}
-                        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-3 sm:p-6 border-t border-slate-700 bg-slate-900/30 sticky bottom-0">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="order-2 sm:order-1 px-6 py-3 sm:py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="order-1 sm:order-2 bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Salvando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="w-4 h-4" />
-                                        Salvar Evento
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                                        return sortedCategories.map(category => (
+                                            <div key={category}>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2 sticky top-0 bg-surface py-1 z-[1]">
+                                                    <span>{categoryIcons[category] || '📦'}</span>
+                                                    {category}
+                                                    <span className="text-slate-600">({grouped[category].length})</span>
+                                                </h4>
+                                                <div className="space-y-2">
+                                                    {grouped[category].map(eq => {
+                                                        const alloc = selectedEquipments.find(a => a.equipmentId === eq.id);
+                                                        const isSelected = !!alloc;
+                                                        const available = availabilityMap[eq.id] || 0;
+                                                        const isUnavailable = available <= 0;
+                                                        const isLED = eq.category === 'Painel de LED';
 
-            {/* ===== EQUIPMENT POPUP (Sub-Modal) ===== */}
-            {isEquipPopupOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm overflow-hidden">
-                    <div className="bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 h-full sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden">
-                        {/* Popup Header */}
-                        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-700 bg-slate-900/50 rounded-t-xl">
-                            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                                <div className="p-1 bg-emerald-600 rounded-lg">
-                                    <Package className="w-4 h-4 text-white" />
-                                </div>
-                                Selecionar Equipamentos
-                            </h3>
-                            <button
-                                onClick={() => setIsEquipPopupOpen(false)}
-                                className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+                                                        return (
+                                                            <div
+                                                                key={eq.id}
+                                                                className={`rounded-xl border p-4 transition-all ${isSelected
+                                                                    ? 'bg-emerald-900/15 border-emerald-500/40'
+                                                                    : isUnavailable
+                                                                        ? 'bg-slate-800/50 border-slate-700 opacity-50'
+                                                                        : 'bg-slate-900/80 border-slate-700 hover:border-slate-600'
+                                                                    }`}
+                                                            >
+                                                                {/* Card top row */}
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <h5 className="text-white font-bold text-sm truncate">{eq.name}</h5>
+                                                                            {isSelected && <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                                                                        </div>
+                                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                                            <span className="text-xs text-slate-400">{eq.brand}{eq.model ? ` • ${eq.model}` : ''}</span>
+                                                                            <span className="text-xs text-yellow-400 flex items-center gap-0.5">
+                                                                                <Zap className="w-3 h-3" />{eq.watts}W
+                                                                            </span>
+                                                                            {isLED && eq.panelWidth && eq.panelHeight && (
+                                                                                <span className="text-xs text-blue-400">
+                                                                                    {eq.panelWidth}m × {eq.panelHeight}m
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    {/* Availability + Stock */}
+                                                                    <div className="text-right flex-shrink-0">
+                                                                        <p className={`text-lg font-black ${available > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                            {available}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-slate-500">{eq.quantityOwned} total</p>
+                                                                    </div>
+                                                                </div>
 
-                        {/* Search */}
-                        <div className="p-4 sm:p-5 pb-0">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por nome, marca ou modelo..."
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:border-emerald-500 outline-none transition-all placeholder-slate-500"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-
-                        {/* Equipment List */}
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
-                            {filteredEquipments.map(eq => {
-                                const isSelected = selectedEquipments.some(alloc => alloc.equipmentId === eq.id);
-                                const available = availabilityMap[eq.id] || 0;
-                                const isUnavailable = available <= 0;
-
-                                return (
-                                    <button
-                                        key={eq.id}
-                                        type="button"
-                                        onClick={() => {
-                                            if (!isSelected && !isUnavailable) {
-                                                handleAddEquipment(eq);
-                                            }
-                                        }}
-                                        disabled={isSelected || isUnavailable}
-                                        className={`w-full text-left p-3 rounded-lg border transition-all ${isSelected
-                                            ? 'bg-emerald-900/20 border-emerald-500/40 cursor-default'
-                                            : isUnavailable
-                                                ? 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
-                                                : 'bg-slate-900 border-slate-700 hover:border-emerald-500 hover:bg-slate-800'
-                                            }`}
-                                    >
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-white font-medium text-sm truncate">{eq.name}</p>
-                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
-                                                    <span className="text-xs text-slate-400">{eq.brand} - {eq.model}</span>
-                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${available > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                                                        {available} disp.
-                                                    </span>
-                                                    <span className="text-xs text-yellow-400 flex items-center gap-0.5">
-                                                        <Zap className="w-3 h-3" />{eq.watts}W
-                                                    </span>
+                                                                {/* Action row */}
+                                                                <div className="mt-3 flex items-center gap-2">
+                                                                    {isSelected ? (
+                                                                        <>
+                                                                            {/* Editable quantity */}
+                                                                            <div className="flex items-center gap-1 bg-slate-800 rounded-lg border border-slate-700 p-1">
+                                                                                <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated - 1)} disabled={alloc!.quantityAllocated <= 1} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
+                                                                                    <Minus className="w-4 h-4" />
+                                                                                </button>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    inputMode="numeric"
+                                                                                    value={editingQty[alloc!.id] !== undefined ? editingQty[alloc!.id] : alloc!.quantityAllocated}
+                                                                                    onChange={e => {
+                                                                                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                                                                                        setEditingQty(prev => ({ ...prev, [alloc!.id]: raw }));
+                                                                                    }}
+                                                                                    onFocus={e => {
+                                                                                        setEditingQty(prev => ({ ...prev, [alloc!.id]: String(alloc!.quantityAllocated) }));
+                                                                                        setTimeout(() => e.target.select(), 0);
+                                                                                    }}
+                                                                                    onBlur={() => {
+                                                                                        const raw = editingQty[alloc!.id];
+                                                                                        const val = parseInt(raw) || 1;
+                                                                                        const clamped = Math.min(Math.max(val, 1), available);
+                                                                                        handleUpdateQuantity(alloc!.id, clamped);
+                                                                                        setEditingQty(prev => { const next = { ...prev }; delete next[alloc!.id]; return next; });
+                                                                                    }}
+                                                                                    onKeyDown={e => {
+                                                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                                                    }}
+                                                                                    className="w-14 h-8 bg-slate-900 border border-slate-600 rounded-md text-white text-center text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                                                                                />
+                                                                                <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated + 1)} disabled={alloc!.quantityAllocated >= available} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
+                                                                                    <Plus className="w-4 h-4" />
+                                                                                </button>
+                                                                            </div>
+                                                                            <span className="text-[10px] text-slate-500">de {available}</span>
+                                                                            {/* LED Calc shortcut */}
+                                                                            {isLED && (
+                                                                                <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="ml-auto text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 transition-colors">
+                                                                                    <Activity className="w-3.5 h-3.5" />
+                                                                                    Calc. Área
+                                                                                </button>
+                                                                            )}
+                                                                            {/* Remove */}
+                                                                            <button type="button" onClick={() => handleRemoveEquipment(alloc!.id)} className="ml-auto p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Remover">
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        </>
+                                                                    ) : isUnavailable ? (
+                                                                        <span className="text-xs text-red-400 flex items-center gap-1">
+                                                                            <AlertCircle className="w-3.5 h-3.5" /> Indisponível no período
+                                                                        </span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button type="button" onClick={() => handleAddEquipment(eq)} className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all">
+                                                                                <Plus className="w-3.5 h-3.5" />
+                                                                                Adicionar
+                                                                            </button>
+                                                                            {isLED && (
+                                                                                <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 transition-colors">
+                                                                                    <Activity className="w-3.5 h-3.5" />
+                                                                                    Calc. Área
+                                                                                </button>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                                {isUnavailable && !isSelected && (
-                                                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                                                        <AlertCircle className="w-3 h-3" /> Indisponível
-                                                    </p>
-                                                )}
-                                                {isSelected && (
-                                                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                                                        <CheckCircle className="w-3 h-3" /> Já adicionado
-                                                    </p>
-                                                )}
-                                                {eq.category === 'Painel de LED' && !isUnavailable && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleOpenLEDCalc(eq);
-                                                        }}
-                                                        className="mt-2 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 transition-colors"
-                                                    >
-                                                        <Activity className="w-3 h-3" />
-                                                        Calculadora de Área
-                                                    </button>
-                                                )}
                                             </div>
-                                            <div className="text-left sm:text-right flex-shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-slate-800 sm:border-0 flex sm:flex-col justify-between items-center sm:items-end">
-                                                <p className={`text-sm font-bold ${available > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {available} disp.
-                                                </p>
-                                                <p className="text-xs text-slate-500">{eq.quantityOwned} total</p>
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                            {filteredEquipments.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">
-                                    <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                    <p className="font-medium">Nenhum equipamento encontrado</p>
-                                    <p className="text-xs mt-1">Tente outro termo de busca</p>
+                                        ));
+                                    })()}
                                 </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer with navigation */}
+                    <div className="flex items-center justify-between p-3 sm:p-5 border-t border-slate-700 bg-slate-900/30 sticky bottom-0">
+                        <div>
+                            {currentStep > 1 ? (
+                                <button
+                                    type="button"
+                                    onClick={handleBack}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    Voltar
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
+                                >
+                                    Cancelar
+                                </button>
                             )}
                         </div>
 
-                        {/* Popup Footer */}
-                        <div className="flex justify-end p-4 sm:p-5 border-t border-slate-700 bg-slate-900/30 rounded-b-xl">
-                            <button
-                                type="button"
-                                onClick={() => setIsEquipPopupOpen(false)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all"
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                Concluir Seleção
-                            </button>
+                        <div className="flex items-center gap-2">
+                            {/* Step indicator (mobile) */}
+                            <span className="text-xs text-slate-500 sm:hidden">{currentStep}/3</span>
+
+                            {currentStep < 3 ? (
+                                <button
+                                    type="button"
+                                    onClick={handleNext}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95 transition-all"
+                                >
+                                    Próximo
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Salvando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4" />
+                                            Salvar Evento
+                                        </>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
-            {/* LED Area Calculator Modal (Sub-Sub-Modal) */}
+            {/* LED Area Calculator Modal */}
             {isLEDCalcOpen && activeLEDEquip && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
                     <div className="bg-surface border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
@@ -713,16 +800,10 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                             </div>
 
                             <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                                <button
-                                    onClick={() => setCalcMode('dimensions')}
-                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'dimensions' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
+                                <button type="button" onClick={() => setCalcMode('dimensions')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'dimensions' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
                                     Dimensões (LxA)
                                 </button>
-                                <button
-                                    onClick={() => setCalcMode('area')}
-                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'area' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
+                                <button type="button" onClick={() => setCalcMode('area')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'area' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
                                     Área Total (m²)
                                 </button>
                             </div>
@@ -731,36 +812,18 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Largura (m)</label>
-                                        <input
-                                            type="number"
-                                            placeholder="Ex: 5"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none"
-                                            value={targetWidth}
-                                            onChange={e => setTargetWidth(e.target.value)}
-                                        />
+                                        <input type="number" placeholder="Ex: 5" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none" value={targetWidth} onChange={e => setTargetWidth(e.target.value)} />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Altura (m)</label>
-                                        <input
-                                            type="number"
-                                            placeholder="Ex: 4"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none"
-                                            value={targetHeight}
-                                            onChange={e => setTargetHeight(e.target.value)}
-                                        />
+                                        <input type="number" placeholder="Ex: 4" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none" value={targetHeight} onChange={e => setTargetHeight(e.target.value)} />
                                     </div>
                                 </div>
                             ) : (
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Quantos m² você precisa?</label>
                                     <div className="relative">
-                                        <input
-                                            type="number"
-                                            placeholder="Ex: 32"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none pr-12"
-                                            value={targetArea}
-                                            onChange={e => setTargetArea(e.target.value)}
-                                        />
+                                        <input type="number" placeholder="Ex: 32" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-xl font-bold focus:border-emerald-500 outline-none pr-12" value={targetArea} onChange={e => setTargetArea(e.target.value)} />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">m²</span>
                                     </div>
                                 </div>
@@ -792,6 +855,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
                             <div className="pt-2">
                                 <button
+                                    type="button"
                                     onClick={handleApplyLEDCalc}
                                     disabled={
                                         (calcMode === 'area' && (!targetArea || Number(targetArea) <= 0)) ||
@@ -810,4 +874,3 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         </>
     );
 };
-

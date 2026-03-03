@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen } from 'lucide-react';
+import { Zap, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -16,6 +16,8 @@ import { MobileDrawer } from './components/MobileDrawer';
 import { PowerSystemView } from './components/PowerSystemView';
 import { EducationView } from './components/EducationView';
 import NotificationCenter from './components/NotificationCenter';
+import { TVDashboardView } from './components/TVDashboardView';
+import { MaintenanceView } from './components/MaintenanceView';
 
 export default function App() {
   return (
@@ -172,8 +174,10 @@ function MainLayout() {
   // Navigations Items
   const navItems = [
     { id: 'events', label: 'Eventos', icon: Calendar },
+    { id: 'tv-dashboard', label: 'Painel TV', icon: Monitor },
     { id: 'availability', label: 'Disponibilidade', icon: TrendingUp },
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
+    { id: 'maintenance', label: 'Manutenção', icon: Wrench },
     { id: 'calculator', label: 'Calc. Rápido', icon: Calculator },
     { id: 'distribution', label: 'Distribuição', icon: FolderKanban },
     { id: 'power-system', label: 'Elétrica', icon: Activity },
@@ -239,6 +243,10 @@ function MainLayout() {
         );
       case 'education':
         return <div className="animate-fade-in"><EducationView /></div>;
+      case 'tv-dashboard':
+        return <div className="animate-fade-in"><TVDashboardView /></div>;
+      case 'maintenance':
+        return <div className="animate-fade-in"><MaintenanceView /></div>;
       default:
         return <EquipmentsView />;
     }

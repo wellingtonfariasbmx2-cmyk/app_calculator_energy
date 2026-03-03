@@ -1,6 +1,6 @@
 
-const CACHE_NAME = 'lightload-pro-v1';
-const DYNAMIC_CACHE_NAME = 'lightload-dynamic-v1';
+const CACHE_NAME = 'lightload-pro-v2';
+const DYNAMIC_CACHE_NAME = 'lightload-dynamic-v2';
 
 // Assets fundamentais para o app shell
 const PRECACHE_ASSETS = [
@@ -84,8 +84,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignorar requisições que não sejam GET ou para esquemas não suportados (como chrome-extension)
+  // Ignorar requisições que não sejam GET ou para esquemas não suportados (como chrome-extension, blob:, data:)
   if (event.request.method !== 'GET' || !url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Não interceptar blob: URLs (downloads de PDF, etc.) para preservar o filename
+  if (event.request.url.startsWith('blob:')) {
     return;
   }
 

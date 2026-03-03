@@ -132,4 +132,23 @@ export interface EquipmentAllocation {
 
 export type AnyReport = Calculation | DistributionProject | Event;
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education';
+export interface MaintenanceRecord {
+  id: string;
+  equipmentId: string;
+  equipment?: Equipment; // Loaded via join
+  type: 'preventive' | 'corrective' | 'replacement';
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  cost?: number;
+  parts?: string; // Peças necessárias
+  technician?: string;
+  scheduledDate?: string;
+  completedDate?: string;
+  nextMaintenanceDate?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education' | 'tv-dashboard' | 'maintenance';
