@@ -223,13 +223,34 @@ export class EventService {
 
     /**
      * Verificar disponibilidade de equipamento para um evento
-     * Retorna a quantidade disponível
+     * Retorna a quantidade disponível baseado em conflito de datas.
      */
     static async checkAvailability(
         equipmentId: string,
         excludeEventId?: string
     ): Promise<number> {
         if (!supabase) return -1;
+
+        // 1. Determinar de qual data estamos falando
+        let targetStart = new Date();
+        let targetEnd = new Date();
+        targetStart.setHours(0, 0, 0, 0);
+        targetEnd.setHours(23, 59, 59, 999);
+
+        if (excludeEventId) {
+            const { data: targetEvent } = await supabase
+                .from('events')
+                .select('start_date, end_date')
+                .eq('id', excludeEventId)
+                .single();
+            if (targetEvent) {
+                targetStart = new Date(targetEvent.start_date);
+                targetStart.setHours(0, 0, 0, 0);
+                targetEnd = new Date(targetEvent.end_date || targetEvent.start_date);
+                targetEnd.setHours(23, 59, 59, 999);
+            }
+        }
+
         // Buscar equipamento
         const { data: equipment, error: eqError } = await supabase
             .from('equipments')
@@ -238,49 +259,51 @@ export class EventService {
             .single();
 
         if (eqError || !equipment) {
-            return -1; // Sinaliza que o item não foi encontrado no banco
+            return -1;
         }
 
-        // Buscar alocações ativas (eventos planejados ou em andamento)
-        let query = supabase
+        // Buscar alocações ativas
+        const { data: allocations, error: allocError } = await supabase
             .from('equipment_allocations')
             .select(`
-        quantity_allocated,
-        event:events!inner (status)
-      `)
+                quantity_allocated,
+                event_id,
+                event:events!inner (status, start_date, end_date)
+            `)
             .eq('equipment_id', equipmentId)
             .eq('status', 'allocated')
             .in('event.status', ['planned', 'in_progress']);
-
-        // Excluir evento atual se fornecido
-        if (excludeEventId) {
-            query = query.neq('event_id', excludeEventId);
-        }
-
-        const { data: allocations, error: allocError } = await query;
 
         if (allocError) {
             console.error('Error checking availability:', allocError);
             return equipment.quantity_owned;
         }
 
-        // Calcular total alocado
-        const totalAllocated = (allocations || []).reduce(
-            (sum, alloc) => sum + alloc.quantity_allocated,
-            0
-        );
+        // Calcular total alocado considerando CONFLITO DE DATAS
+        const totalAllocated = (allocations || [])
+            .filter(alloc => alloc.event_id !== excludeEventId)
+            .filter(alloc => {
+                const allocEvent = alloc.event as any;
+                const allocStart = new Date(allocEvent.start_date);
+                allocStart.setHours(0, 0, 0, 0);
+                const allocEnd = new Date(allocEvent.end_date || allocEvent.start_date);
+                allocEnd.setHours(23, 59, 59, 999);
+
+                // Há conflito se o evento B começa antes de A terminar E B termina depois de A começar
+                return (allocStart <= targetEnd && allocEnd >= targetStart);
+            })
+            .reduce((sum, alloc) => sum + alloc.quantity_allocated, 0);
 
         return equipment.quantity_owned - totalAllocated;
     }
 
     /**
      * Buscar disponibilidade de TODOS os equipamentos de uma vez (otimizado)
-     * Retorna um Map com equipment_id => quantity_available
+     * Retorna a quantidade livre HOJE (eventos que estão ocorrendo na data atual)
      */
     static async checkAllAvailability(): Promise<Map<string, number>> {
         if (!supabase) return new Map();
 
-        // Buscar todos os equipamentos
         const { data: equipments, error: eqError } = await supabase
             .from('equipments')
             .select('id, quantity_owned');
@@ -290,13 +313,12 @@ export class EventService {
             return new Map();
         }
 
-        // Buscar todas as alocações ativas
         const { data: allocations, error: allocError } = await supabase
             .from('equipment_allocations')
             .select(`
                 equipment_id,
                 quantity_allocated,
-                event:events!inner (status)
+                event:events!inner (status, start_date, end_date)
             `)
             .eq('status', 'allocated')
             .in('event.status', ['planned', 'in_progress']);
@@ -306,12 +328,26 @@ export class EventService {
             return new Map();
         }
 
-        // Calcular disponibilidade para cada equipamento
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tonight = new Date();
+        tonight.setHours(23, 59, 59, 999);
+
         const availabilityMap = new Map<string, number>();
 
         equipments.forEach(eq => {
             const totalAllocated = (allocations || [])
                 .filter(alloc => alloc.equipment_id === eq.id)
+                .filter(alloc => {
+                    const allocEvent = alloc.event as any;
+                    const allocStart = new Date(allocEvent.start_date);
+                    allocStart.setHours(0, 0, 0, 0);
+                    const allocEnd = new Date(allocEvent.end_date || allocEvent.start_date);
+                    allocEnd.setHours(23, 59, 59, 999);
+
+                    // Verifica se o evento está ocorrendo HOJE
+                    return (allocStart <= tonight && allocEnd >= today);
+                })
                 .reduce((sum, alloc) => sum + alloc.quantity_allocated, 0);
 
             const available = eq.quantity_owned - totalAllocated;
@@ -423,7 +459,22 @@ export class EventService {
                 id: alloc.id,
                 eventId: alloc.event_id,
                 equipmentId: alloc.equipment_id,
-                equipment: alloc.equipment,
+                equipment: alloc.equipment ? {
+                    id: alloc.equipment.id,
+                    name: alloc.equipment.name,
+                    brand: alloc.equipment.brand || '',
+                    model: alloc.equipment.model || '',
+                    category: alloc.equipment.category || 'Outros',
+                    watts: Number(alloc.equipment.watts) || 0,
+                    voltage: Number(alloc.equipment.voltage) || 110,
+                    amperes: Number(alloc.equipment.amperes) || 0,
+                    powerFactor: Number(alloc.equipment.power_factor) || 1.0,
+                    quantityOwned: Number(alloc.equipment.quantity_owned) || 0,
+                    status: alloc.equipment.status || 'active',
+                    panelWidth: alloc.equipment.panel_width ? Number(alloc.equipment.panel_width) : undefined,
+                    panelHeight: alloc.equipment.panel_height ? Number(alloc.equipment.panel_height) : undefined,
+                    panelsPerCase: alloc.equipment.panels_per_case ? Number(alloc.equipment.panels_per_case) : undefined
+                } : undefined,
                 quantityAllocated: alloc.quantity_allocated,
                 status: alloc.status,
                 allocatedAt: alloc.allocated_at,

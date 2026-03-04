@@ -1,60 +1,67 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#080F1D" />
-    <meta name="description" content="StageFlow Pro - Gestão Inteligente de Eventos & Produção Técnica" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/427/427735.png" />
-    <title>StageFlow Pro</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              background: '#080F1D',
-              surface: '#0F1729',
-              surfaceHover: '#1A2540',
-              primary: '#06B6D4',
-              primaryHover: '#0891B2',
-              secondary: '#64748B',
-              accent: '#10B981',
-            },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#080F1D" />
+  <meta name="description" content="StageFlow Pro - Gestão Inteligente de Eventos & Produção Técnica" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/427/427735.png" />
+  <title>StageFlow Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: 'var(--bg-main)',
+            surface: 'var(--bg-surface)',
+            surfaceHover: 'var(--bg-surface-hover)',
+            primary: 'var(--color-primary)',
+            primaryHover: 'var(--color-primary-hover)',
+            secondary: 'var(--color-secondary)',
+            accent: 'var(--color-accent)',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
           }
         }
       }
-    </script>
-    <style>
-      body {
-        background-color: #080F1D;
-        color: #E2E8F0;
-        font-family: 'Inter', system-ui, sans-serif;
-        -webkit-tap-highlight-color: transparent;
-      }
-      /* Custom Scrollbar for dark theme */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #080F1D; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #334155; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #475569; 
-      }
-    </style>
+    }
+  </script>
+  <style>
+    body {
+      background-color: var(--bg-main);
+      color: var(--color-text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Custom Scrollbar for theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-main);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--color-secondary);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-primary);
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -68,10 +75,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

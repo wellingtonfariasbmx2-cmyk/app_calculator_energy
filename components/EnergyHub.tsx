@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
-import { Calculator, FolderKanban, Activity, Zap } from 'lucide-react';
+import { Calculator, FolderKanban, Activity, Zap, FileText } from 'lucide-react';
 import { CalculatorView } from './CalculatorView';
 import { DistributionView } from './DistributionView';
 import { PowerSystemView } from './PowerSystemView';
+import { ReportsView } from './ReportsView';
 import { DistributionProject } from '../types';
 
 interface EnergyHubProps {
     initialProject?: DistributionProject | null;
     onClearEdit?: () => void;
+    onEditDistribution?: (project: DistributionProject) => void;
 }
 
-type EnergyTab = 'calculator' | 'distribution' | 'power-system';
+type EnergyTab = 'calculator' | 'distribution' | 'power-system' | 'reports';
 
-export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdit }) => {
+export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdit, onEditDistribution }) => {
     const [activeTab, setActiveTab] = useState<EnergyTab>(initialProject ? 'distribution' : 'calculator');
 
     const tabs = [
         { id: 'calculator' as EnergyTab, label: 'Calculadora', icon: Calculator, desc: 'Calcule consumo de equipamentos' },
         { id: 'distribution' as EnergyTab, label: 'Distribuição', icon: FolderKanban, desc: 'Distribua circuitos entre fases' },
         { id: 'power-system' as EnergyTab, label: 'Elétrica', icon: Activity, desc: 'Mainpower trifásico' },
+        { id: 'reports' as EnergyTab, label: 'Relatórios', icon: FileText, desc: 'Histórico e exportação' },
     ];
 
     // If initialProject changes, switch to distribution tab
@@ -74,6 +77,14 @@ export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdi
                     />
                 )}
                 {activeTab === 'power-system' && <PowerSystemView />}
+                {activeTab === 'reports' && (
+                    <ReportsView
+                        onEditDistribution={(project) => {
+                            if (onEditDistribution) onEditDistribution(project);
+                            setActiveTab('distribution');
+                        }}
+                    />
+                )}
             </div>
         </div>
     );

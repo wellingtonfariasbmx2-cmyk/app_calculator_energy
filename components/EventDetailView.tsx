@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, MapPin, Users, Clock, Package, FileText, Plus, Edit2, Trash2, ExternalLink, Link, X, Download, Search, Minus, Activity } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Clock, Package, FileText, Plus, Edit2, Trash2, ExternalLink, Link, X, Download, Search, Minus, Activity, Share2 } from 'lucide-react';
 import { Event, Equipment, DistributionProject } from '../types';
 import { EventService } from '../services/EventService';
 import { DataService } from '../services/supabaseClient';
@@ -7,6 +7,7 @@ import { ExportService } from '../services/ExportService';
 import { useToast } from './Toast';
 import { useConfirm } from './ConfirmModal';
 import { EventModal } from './EventModal';
+import { useConfig } from './ConfigContext';
 
 interface EventDetailViewProps {
     eventId: string;
@@ -40,6 +41,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
 
     const { success, error: showError } = useToast();
     const { confirm, ConfirmModalComponent } = useConfirm();
+    const { company } = useConfig();
 
     useEffect(() => {
         loadEventDetails();
@@ -109,7 +111,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
     const handleExportPDF = async () => {
         if (!event) return;
         try {
-            await ExportService.exportEventPDF(event);
+            await ExportService.exportEventPDF(event, company || undefined);
             success('PDF gerado com sucesso!');
         } catch (err) {
             console.error('Error generating PDF:', err);
@@ -251,6 +253,68 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
         });
     };
 
+    const handleShareWhatsApp = () => {
+        if (!event) return;
+
+        // Formatar lista de equipamentos
+        let equipList = '';
+        if (event.equipmentAllocations && event.equipmentAllocations.length > 0) {
+            equipList = '\n\n*--- LISTA DE EQUIPAMENTOS ---*\n';
+            event.equipmentAllocations.forEach(alloc => {
+                const eq = alloc.equipment;
+                const eqName = eq?.name || 'Equipamento';
+
+                if (eq && eq.category === 'Painel de LED') {
+                    const w = eq.panelWidth || 0.5;
+                    const h = eq.panelHeight || 1.0;
+                    const qty = alloc.quantityAllocated;
+
+                    let bestW = 1;
+                    let bestH = qty;
+                    let bestRatioDiff = Infinity;
+                    const targetRatio = 16 / 9;
+
+                    for (let tryW = 1; tryW <= qty; tryW++) {
+                        if (qty % tryW === 0) {
+                            const tryH = qty / tryW;
+                            const currentRatio = (tryW * w) / (tryH * h);
+                            const ratioDiff = Math.abs(currentRatio - targetRatio);
+                            if (ratioDiff < bestRatioDiff) {
+                                bestRatioDiff = ratioDiff;
+                                bestW = tryW;
+                                bestH = tryH;
+                            }
+                        }
+                    }
+
+                    const panelsPerCase = eq.panelsPerCase || 6;
+                    const cases = Math.ceil(qty / panelsPerCase);
+
+                    equipList += `• ${qty}x ${eqName}\n`;
+                    equipList += `  ↳ Tamanho: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m\n`;
+                    equipList += `  ↳ Cases: ${cases} case(s)\n`;
+                } else {
+                    equipList += `• ${alloc.quantityAllocated}x ${eqName}\n`;
+                }
+            });
+        } else {
+            equipList = '\n\n*--- LISTA DE EQUIPAMENTOS ---*\n• Nenhum equipamento alocado ainda.\n';
+        }
+
+        const message = `*EVENTO: ${event.name}*\n\n` +
+            `*DATA:* ${formatDate(event.startDate)}\n` +
+            `*LOCAL:* ${event.venue}\n` +
+            (event.address ? `*ENDEREÇO:* ${event.address}\n` : '') +
+            (event.setupTime ? `*HORÁRIO MONTAGEM:* ${event.setupTime}\n` : '') +
+            (event.eventTime ? `*HORÁRIO EVENTO:* ${event.eventTime}\n` : '') +
+            (event.technicalResponsible ? `*RESP. TÉCNICO:* ${event.technicalResponsible}\n` : '') +
+            equipList +
+            `\nEquipe, fiquem atentos aos detalhes e horários!`;
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
+
     const getStatusBadge = (status: Event['status']) => {
         const badges = {
             planned: { label: 'Planejado', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
@@ -306,18 +370,26 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                     </div>
                     <div className="flex gap-2">
                         <button
+                            onClick={handleShareWhatsApp}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                            title="Compartilhar no WhatsApp"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                        </button>
+                        <button
                             onClick={() => setIsModalOpen(true)}
-                            className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all border border-slate-700"
+                            className="bg-slate-800 hover:bg-slate-700 text-white px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all border border-slate-700"
                         >
                             <Edit2 className="w-4 h-4" />
-                            Editar
+                            <span className="hidden sm:inline">Editar</span>
                         </button>
                         <button
                             onClick={handleExportPDF}
-                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
                         >
                             <Download className="w-4 h-4" />
-                            Gerar PDF
+                            <span className="hidden sm:inline">Gerar PDF</span>
                         </button>
                     </div>
                 </div>

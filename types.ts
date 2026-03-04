@@ -1,3 +1,13 @@
+export type Role = 'owner' | 'employee';
+
+export interface Profile {
+  id: string;
+  role: 'owner' | 'employee';
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Equipment {
   id: string;
   name: string;
@@ -79,6 +89,7 @@ export interface Port {
 
 export interface DistributionProject {
   id: string;
+  companyId?: string;
   type: 'distribution';
   name: string;
   description?: string;
@@ -152,4 +163,4 @@ export interface MaintenanceRecord {
   updatedAt: string;
 }
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education' | 'tv-dashboard' | 'maintenance';
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education' | 'tv-dashboard' | 'maintenance' | 'settings';

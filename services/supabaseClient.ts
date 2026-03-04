@@ -2,23 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import { Equipment, Calculation, DistributionProject, AnyReport } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
-// VITE_ prefix makes these available in the browser
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || '';
 
 const isConfigured = SUPABASE_URL.length > 0 && SUPABASE_KEY.length > 0;
 
-// DEBUG: Verificar se as variáveis estão sendo carregadas
-console.log('🔍 Supabase Debug:');
-console.log('  SUPABASE_URL:', SUPABASE_URL ? '✅ Configurado' : '❌ Não configurado');
-console.log('  SUPABASE_KEY:', SUPABASE_KEY ? '✅ Configurado (hidden)' : '❌ Não configurado');
-console.log('  isConfigured:', isConfigured);
-
 export const supabase = isConfigured
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
-// Função auxiliar robusta para gerar ID (crucial para deletar itens criados localmente)
+// Helper para geração de ID fallback
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -26,7 +19,7 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
-// Helper to convert Equipment from TypeScript (camelCase) to PostgreSQL (snake_case)
+// Conversões
 const equipmentToDb = (item: Equipment): any => ({
   id: item.id,
   name: item.name,
@@ -44,7 +37,6 @@ const equipmentToDb = (item: Equipment): any => ({
   panels_per_case: item.panelsPerCase
 });
 
-// Helper to convert Equipment from PostgreSQL (snake_case) to TypeScript (camelCase)
 const equipmentFromDb = (dbItem: any): Equipment => ({
   id: dbItem.id,
   name: dbItem.name,
@@ -62,7 +54,6 @@ const equipmentFromDb = (dbItem: any): Equipment => ({
   panelsPerCase: dbItem.panels_per_case ? Number(dbItem.panels_per_case) : undefined
 });
 
-// Helper to convert Report from TypeScript (camelCase) to PostgreSQL (snake_case)
 const reportToDb = (report: AnyReport): any => ({
   id: report.id,
   type: report.type,
@@ -79,7 +70,6 @@ const reportToDb = (report: AnyReport): any => ({
   created_at: report.createdAt
 });
 
-// Helper to convert Report from PostgreSQL (snake_case) to TypeScript (camelCase)
 const reportFromDb = (dbReport: any): AnyReport => {
   const base = {
     id: dbReport.id,
@@ -109,207 +99,52 @@ const reportFromDb = (dbReport: any): AnyReport => {
   }
 };
 
-// --- OFFLINE SYNC LOGIC ---
-
-interface SyncAction {
-  id: string;
-  type: 'EQUIPMENT' | 'CALCULATION' | 'DISTRIBUTION';
-  action: 'SAVE' | 'DELETE';
-  payload: any; // ID (string) or Object
-  timestamp: number;
-}
-
-const getSyncQueue = (): SyncAction[] => {
-  try {
-    const queue = localStorage.getItem('ll_sync_queue');
-    return queue ? JSON.parse(queue) : [];
-  } catch { return []; }
-};
-
-const addToSyncQueue = (action: Omit<SyncAction, 'id' | 'timestamp'>) => {
-  const queue = getSyncQueue();
-  const newAction: SyncAction = {
-    ...action,
-    id: generateId(),
-    timestamp: Date.now()
-  };
-  queue.push(newAction);
-  localStorage.setItem('ll_sync_queue', JSON.stringify(queue));
-  console.log('📌 Action queued for sync:', newAction);
-};
-
 export const syncPendingChanges = async (): Promise<number> => {
-  if (!isConfigured || !supabase) return 0;
-
-  const queue = getSyncQueue();
-  if (queue.length === 0) return 0;
-
-  console.log(`🔄 Syncing ${queue.length} pending changes...`);
-  const remainingQueue: SyncAction[] = [];
-  let syncedCount = 0;
-
-  for (const item of queue) {
-    try {
-      if (item.type === 'EQUIPMENT') {
-        if (item.action === 'SAVE') {
-          const dbItem = equipmentToDb(item.payload);
-          const { error } = await supabase.from('equipments').upsert(dbItem);
-          if (error) throw error;
-        } else if (item.action === 'DELETE') {
-          const { error } = await supabase.from('equipments').delete().eq('id', item.payload);
-          if (error) throw error;
-        }
-      }
-      // Add other types logic here if needed (Calculations/Distributions)
-
-      syncedCount++;
-    } catch (err) {
-      console.error('❌ Sync failed for item:', item, err);
-      remainingQueue.push(item); // Keep in queue to retry later
-    }
-  }
-
-  localStorage.setItem('ll_sync_queue', JSON.stringify(remainingQueue));
-  console.log(`✅ Sync complete. ${syncedCount} synced, ${remainingQueue.length} remaining.`);
-  return syncedCount;
+  return 0; // Removido offline sync.
 };
-
-// --- DATA MOCK INICIAL ---
-const INITIAL_EQUIPMENTS: Equipment[] = [];
 
 export const DataService = {
-  // --- EQUIPAMENTOS ---
   getEquipments: async (): Promise<Equipment[]> => {
-    if (isConfigured && supabase) {
-      const { data, error } = await supabase.from('equipments').select('*');
-      if (!error && data) {
-        const items = data.map(equipmentFromDb);
-        localStorage.setItem('ll_equipments', JSON.stringify(items)); // Cache local
-        return items;
-      }
-    }
-
-    try {
-      const stored = localStorage.getItem('ll_equipments');
-      let data = stored ? JSON.parse(stored) : INITIAL_EQUIPMENTS;
-
-      // AUTO-CORREÇÃO: Garante que todos os itens tenham ID ao carregar
-      // Isso resolve problemas de versões antigas do app
-      let hasFixes = false;
-      const fixedData = data.map((item: Equipment) => {
-        if (!item.id) {
-          hasFixes = true;
-          return { ...item, id: generateId() };
-        }
-        return item;
-      });
-
-      if (hasFixes) {
-        localStorage.setItem('ll_equipments', JSON.stringify(fixedData));
-      }
-      return fixedData;
-    } catch (e) {
-      console.error("Erro ao ler equipamentos", e);
-      return [];
-    }
+    if (!isConfigured || !supabase) return [];
+    const { data, error } = await supabase.from('equipments').select('*');
+    if (error) throw error;
+    return data ? data.map(equipmentFromDb) : [];
   },
 
   saveEquipment: async (item: Equipment): Promise<Equipment> => {
+    if (!isConfigured || !supabase) throw new Error("A conexão com o servidor foi perdida. Ação bloqueada para evitar conflitos locais.");
     const newItem = { ...item, id: item.id || generateId() };
-
-    console.log('💾 Saving equipment:', newItem.name);
-    console.log('  Supabase configured?', isConfigured);
-    console.log('  Supabase client?', !!supabase);
-
-    if (isConfigured && supabase) {
-      try {
-        console.log('  Attempting Supabase insert...');
-        const dbItem = equipmentToDb(newItem);
-        const { error } = await supabase.from('equipments').upsert(dbItem);
-
-        if (error) throw error;
-      } catch (err) {
-        console.error('❌ Offline or Error: Queueing for sync', err);
-        addToSyncQueue({ type: 'EQUIPMENT', action: 'SAVE', payload: newItem });
-      }
-    } else {
-      console.warn('⚠️ Supabase not configured, saving to local & queue');
-      addToSyncQueue({ type: 'EQUIPMENT', action: 'SAVE', payload: newItem });
-    }
-
-    const current = await DataService.getEquipments();
-    const index = current.findIndex(e => e.id === newItem.id);
-    let updated = [];
-    if (index >= 0) {
-      updated = current.map(e => e.id === newItem.id ? newItem : e);
-    } else {
-      updated = [...current, newItem];
-    }
-    localStorage.setItem('ll_equipments', JSON.stringify(updated));
+    const dbItem = equipmentToDb(newItem);
+    const { error } = await supabase.from('equipments').upsert(dbItem);
+    if (error) throw error;
     return newItem;
   },
 
   deleteEquipment: async (id: string): Promise<void> => {
-    if (!id) return;
-
-    if (isConfigured && supabase) {
-      try {
-        const { error } = await supabase.from('equipments').delete().eq('id', id);
-        if (error) throw error;
-      } catch (err) {
-        console.error('❌ Offline or Error: Queueing delete', err);
-        addToSyncQueue({ type: 'EQUIPMENT', action: 'DELETE', payload: id });
-      }
-    } else {
-      addToSyncQueue({ type: 'EQUIPMENT', action: 'DELETE', payload: id });
-    }
-
-    const current = await DataService.getEquipments();
-    const updated = current.filter(e => e.id !== id);
-    localStorage.setItem('ll_equipments', JSON.stringify(updated));
+    if (!isConfigured || !supabase || !id) return;
+    const { error } = await supabase.from('equipments').delete().eq('id', id);
+    if (error) throw error;
   },
 
-  // --- RELATÓRIOS (CÁLCULOS & PROJETOS) ---
-
   getReports: async (): Promise<AnyReport[]> => {
-    if (isConfigured && supabase) {
-      const { data } = await supabase.from('calculations').select('*');
-      if (data) {
-        const reports = data.map(reportFromDb);
-        localStorage.setItem('ll_calculations', JSON.stringify(reports)); // Cache local
-        return reports;
-      }
-    }
-    try {
-      const stored = localStorage.getItem('ll_calculations');
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
+    if (!isConfigured || !supabase) return [];
+    const { data, error } = await supabase.from('calculations').select('*');
+    if (error) throw error;
+    return data ? data.map(reportFromDb) : [];
   },
 
   saveReport: async (report: AnyReport): Promise<void> => {
+    if (!isConfigured || !supabase) throw new Error("Erro de conexão ao salvar.");
     const newReport = {
       ...report,
       id: report.id || generateId(),
       createdAt: report.createdAt || new Date().toISOString()
     };
-
-    if (isConfigured && supabase) {
-      const dbReport = reportToDb(newReport);
-      await supabase.from('calculations').upsert(dbReport);
-    }
-
-    const current = await DataService.getReports();
-    // Remove versão antiga se existir (update)
-    const filtered = current.filter(c => c.id !== newReport.id);
-    // Adiciona o novo no topo
-    const updated = [newReport, ...filtered];
-
-    localStorage.setItem('ll_calculations', JSON.stringify(updated));
+    const dbReport = reportToDb(newReport);
+    const { error } = await supabase.from('calculations').upsert(dbReport);
+    if (error) throw error;
   },
 
-  // Wrappers para compatibilidade de tipos
   saveCalculation: async (calc: Calculation): Promise<void> => {
     return DataService.saveReport({ ...calc, type: 'simple' });
   },
@@ -319,60 +154,29 @@ export const DataService = {
   },
 
   getCalculations: async (): Promise<Calculation[]> => {
-    const all = await DataService.getReports();
-    return all.filter(r => r.type === 'simple' || !r.type) as Calculation[];
+    if (!isConfigured || !supabase) return [];
+    const { data, error } = await supabase.from('calculations').select('*').eq('type', 'simple');
+    if (error) throw error;
+    return data ? (data.map(reportFromDb) as Calculation[]) : [];
   },
 
-  getDistributionProjects: async (): Promise<any[]> => {
-    const all = await DataService.getReports();
-    return all.filter(r => r.type === 'distribution');
+  getDistributionProjects: async (): Promise<DistributionProject[]> => {
+    if (!isConfigured || !supabase) return [];
+    const { data, error } = await supabase.from('calculations').select('*').eq('type', 'distribution');
+    if (error) throw error;
+    return data ? (data.map(reportFromDb) as DistributionProject[]) : [];
   },
 
   updateCalculation: async (id: string, updates: Partial<any>): Promise<void> => {
-    if (isConfigured && supabase) {
-      const { error } = await supabase
-        .from('calculations')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error updating calculation:', error);
-        throw error;
-      }
-
-      // Update local cache
-      const stored = localStorage.getItem('ll_calculations');
-      if (stored) {
-        const calculations = JSON.parse(stored);
-        const index = calculations.findIndex((c: AnyReport) => c.id === id);
-        if (index >= 0) {
-          calculations[index] = { ...calculations[index], ...updates };
-          localStorage.setItem('ll_calculations', JSON.stringify(calculations));
-        }
-      }
-    } else {
-      // Fallback to localStorage
-      const stored = localStorage.getItem('ll_calculations');
-      if (stored) {
-        const calculations = JSON.parse(stored);
-        const index = calculations.findIndex((c: AnyReport) => c.id === id);
-        if (index >= 0) {
-          calculations[index] = { ...calculations[index], ...updates };
-          localStorage.setItem('ll_calculations', JSON.stringify(calculations));
-        }
-      }
-    }
+    if (!isConfigured || !supabase) throw new Error("Erro de conexão.");
+    const { error } = await supabase.from('calculations').update(updates).eq('id', id);
+    if (error) throw error;
   },
 
   deleteCalculation: async (id: string): Promise<void> => {
-    if (!id) return;
-
-    if (isConfigured && supabase) {
-      await supabase.from('calculations').delete().eq('id', id);
-    }
-    const current = await DataService.getReports();
-    const updated = current.filter(c => c.id !== id);
-    localStorage.setItem('ll_calculations', JSON.stringify(updated));
+    if (!isConfigured || !supabase || !id) return;
+    const { error } = await supabase.from('calculations').delete().eq('id', id);
+    if (error) throw error;
   },
 
   duplicateReport: async (id: string): Promise<void> => {
@@ -393,10 +197,12 @@ export const DataService = {
   checkConnection: async (): Promise<boolean> => {
     if (!isConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('equipments').select('count', { count: 'exact', head: true });
+      const { error } = await supabase.from('equipments').select('id').limit(1);
       return !error;
-    } catch {
-      return false;
-    }
-  }
+    } catch { return false; }
+  },
+
+  signInWithGitHub: async () => { },
+  signOut: async () => { },
+  getSession: async () => ({ session: null })
 };

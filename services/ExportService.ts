@@ -191,7 +191,7 @@ export const ExportService = {
     /**
      * Gera um PDF profissional com relatório completo do evento
      */
-    exportEventPDF: async (event: any) => {
+    exportEventPDF: async (event: any, companyParams?: { name?: string, logoUrl?: string }) => {
         const { default: jsPDF } = await import('jspdf');
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -212,6 +212,8 @@ export const ExportService = {
         };
 
         // ===== HEADER =====
+        const companyName = companyParams?.name || 'StageFlow PRO';
+
         doc.setFillColor(88, 28, 135); // purple-900
         doc.rect(0, 0, pageWidth, 35, 'F');
         doc.setTextColor(255, 255, 255);
@@ -221,7 +223,7 @@ export const ExportService = {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 28);
-        doc.text('StageFlow PRO', pageWidth - margin, 28, { align: 'right' });
+        doc.text(companyName, pageWidth - margin, 28, { align: 'right' });
         y = 45;
 
         // ===== EVENT NAME & STATUS =====
@@ -327,30 +329,56 @@ export const ExportService = {
                     alloc.status === 'allocated' ? 'Alocado' : 'Devolvido'
                 ];
 
-                // Alternating row bg
-                doc.setDrawColor(230, 230, 230);
-                doc.line(margin, y + 2, pageWidth - margin, y + 2);
-
                 rowData.forEach((val, i) => {
                     doc.text(val, xPos + 2, y);
                     xPos += colWidths[i];
                 });
 
                 if (eq?.category === 'Painel de LED') {
-                    y += 3.5;
+                    y += 4.5;
+
+                    const w = eq.panelWidth || eq.panel_width || 0.5;
+                    const h = eq.panelHeight || eq.panel_height || 1.0;
+                    const qty = alloc.quantityAllocated;
+
+                    let bestW = 1;
+                    let bestH = qty;
+                    let bestRatioDiff = Infinity;
+                    const targetRatio = 16 / 9;
+
+                    for (let tryW = 1; tryW <= qty; tryW++) {
+                        if (qty % tryW === 0) {
+                            const tryH = qty / tryW;
+                            const currentRatio = (tryW * w) / (tryH * h);
+                            const ratioDiff = Math.abs(currentRatio - targetRatio);
+                            if (ratioDiff < bestRatioDiff) {
+                                bestRatioDiff = ratioDiff;
+                                bestW = tryW;
+                                bestH = tryH;
+                            }
+                        }
+                    }
+
                     const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
-                    const cases = Math.ceil(alloc.quantityAllocated / panelsPerCase);
+                    const cases = Math.ceil(qty / panelsPerCase);
+
+                    // Optional subtle background to separate the LED info inside the cell
+                    doc.setFillColor(255, 248, 240); // very soft orange
+                    doc.rect(margin + 1, y - 3, pageWidth - margin * 2 - 2, 4.5, 'F');
+
                     doc.setFontSize(7);
                     doc.setTextColor(150, 80, 0); // Orange-ish
                     doc.setFont('helvetica', 'bold');
-                    doc.text(`> LOGÍSTICA LED: ${alloc.quantityAllocated} placas em ${cases} case(s) de transporte`, margin + 2, y);
+                    doc.text(`> LOGÍSTICA LED: Tamanho ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m (${qty} placas em ${cases} case(s))`, margin + 2, y);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(40, 40, 40);
                     doc.setFontSize(9);
-                    y += 3.5;
-                } else {
-                    y += 7;
                 }
+
+                // Alternating row bg / Separator line under the ENTIRE equipment row
+                doc.setDrawColor(230, 230, 230);
+                doc.line(margin, y + 2.5, pageWidth - margin, y + 2.5);
+                y += 7;
             });
 
             // Totals
@@ -377,7 +405,7 @@ export const ExportService = {
             doc.line(margin, 285, pageWidth - margin, 285);
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
-            doc.text(`StageFlow PRO • Relatório do Evento`, margin, 291);
+            doc.text(`${companyName} • Relatório do Evento`, margin, 291);
             doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, 291, { align: 'right' });
         }
 

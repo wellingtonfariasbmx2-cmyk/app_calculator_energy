@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
-import { DataService, syncPendingChanges } from './services/supabaseClient'; // Import sync
+import { DataService } from './services/supabaseClient';
 import { CalculatorView } from './components/CalculatorView';
 import { DistributionView } from './components/DistributionView';
 import { ReportsView } from './components/ReportsView';
@@ -19,13 +18,18 @@ import NotificationCenter from './components/NotificationCenter';
 import { TVDashboardView } from './components/TVDashboardView';
 import { MaintenanceView } from './components/MaintenanceView';
 import { EnergyHub } from './components/EnergyHub';
+import { ConfigProvider, useConfig } from './components/ConfigContext';
+import { SettingsView } from './components/SettingsView';
+import { Settings } from 'lucide-react';
 
 export default function App() {
   return (
-    <ToastProvider>
-      <MainLayout />
-      <StatusIndicator />
-    </ToastProvider>
+    <ConfigProvider>
+      <ToastProvider>
+        <MainLayout />
+        <StatusIndicator />
+      </ToastProvider>
+    </ConfigProvider>
   );
 }
 
@@ -107,16 +111,33 @@ function MainLayout() {
   const [editingProject, setEditingProject] = useState<DistributionProject | null>(null);
 
   const { success, error, info } = useToast();
+  const { company, profile, isLoadingConfig } = useConfig();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+
+    // Clear legacy DataService caches (from supabaseClient.ts)
+    localStorage.removeItem('stageflow_profile');
+    localStorage.removeItem('stageflow_config');
+    localStorage.removeItem('ll_equipments');
+    localStorage.removeItem('ll_events');
+    localStorage.removeItem('ll_calculations');
+    localStorage.removeItem('ll_distribution_projects');
+    localStorage.removeItem('ll_sync_queue');
+
+    // Wipe IndexedDB if used by custom sync, or just force hard reload to clear React memory
     success('Você saiu com sucesso.');
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 500);
   };
 
   React.useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsLoading(false);
+    }).catch(() => {
       setIsLoading(false);
     });
 
@@ -131,35 +152,8 @@ function MainLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  React.useEffect(() => {
-    // Tenta sincronizar ao abrir
-    syncPendingChanges().then(count => {
-      if (count > 0) success(`${count} itens sincronizados!`);
-    });
 
-    const handleOnline = () => {
-      console.log('🌐 Online! Syncing...');
-      syncPendingChanges().then(count => {
-        if (count > 0) success(`Conexão restaurada! ${count} itens enviados.`);
-        else info('Conexão restaurada! Sincronizado.');
-      });
-    };
-
-    const handleOffline = () => {
-      info('Você está offline. Agora usando modo offline. 📡');
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-
-  if (isLoading) {
+  if (isLoading || isLoadingConfig) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -172,17 +166,15 @@ function MainLayout() {
     return <LoginView onLoginSuccess={() => success('Login realizado com sucesso!')} />;
   }
 
-  // Navigations Items
-  const navItems = [
+  const baseNavItems = [
     { id: 'events', label: 'Eventos', icon: Calendar },
     { id: 'tv-dashboard', label: 'Dashboard', icon: Monitor },
     { id: 'availability', label: 'Disponibilidade', icon: TrendingUp },
     { id: 'equipments', label: 'Equipamentos', icon: Zap },
     { id: 'maintenance', label: 'Manutenção', icon: Wrench },
     { id: 'energy', label: 'Energia', icon: Activity },
-    { id: 'reports', label: 'Relatórios', icon: FileText },
   ];
-
+  const navItems = [...baseNavItems];
   const renderView = () => {
     switch (currentView) {
       case 'events':
@@ -223,6 +215,9 @@ function MainLayout() {
             <EnergyHub
               initialProject={editingProject}
               onClearEdit={() => setEditingProject(null)}
+              onEditDistribution={(project) => {
+                setEditingProject(project);
+              }}
             />
           </div>
         );
@@ -232,16 +227,8 @@ function MainLayout() {
             <EnergyHub
               initialProject={editingProject}
               onClearEdit={() => setEditingProject(null)}
-            />
-          </div>
-        );
-      case 'reports':
-        return (
-          <div className="animate-fade-in">
-            <ReportsView
               onEditDistribution={(project) => {
                 setEditingProject(project);
-                setCurrentView('energy');
               }}
             />
           </div>
@@ -250,6 +237,7 @@ function MainLayout() {
         return <div className="animate-fade-in"><TVDashboardView /></div>;
       case 'maintenance':
         return <div className="animate-fade-in"><MaintenanceView /></div>;
+
       default:
         return <EquipmentsView />;
     }
@@ -285,11 +273,17 @@ function MainLayout() {
 
               {/* Logo Area */}
               <div className="flex items-center gap-2 sm:gap-3 group cursor-default">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300 group-hover:scale-105 shrink-0">
-                  <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-white" strokeWidth={2.5} />
-                </div>
+                {company?.logoUrl ? (
+                  <img src={company.logoUrl} alt="Logo" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain hover:scale-105 transition-all bg-white/10" />
+                ) : (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all duration-300 group-hover:scale-105 shrink-0">
+                    <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-white" strokeWidth={2.5} />
+                  </div>
+                )}
                 <div className="leading-tight min-w-0">
-                  <h1 className="text-white font-bold text-base sm:text-lg tracking-tight group-hover:text-cyan-400 transition-colors truncate">Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></h1>
+                  <h1 className="text-white font-bold text-base sm:text-lg tracking-tight group-hover:text-cyan-400 transition-colors truncate">
+                    {company?.name || <p>Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></p>}
+                  </h1>
                   <div className="hidden sm:flex items-center gap-2">
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors truncate max-w-[100px] lg:max-w-[200px]">
                       {session.user.email?.split('@')[0]}

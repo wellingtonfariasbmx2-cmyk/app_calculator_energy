@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Layers } from 'lucide-react';
 import { ViewState } from '../types';
+import { useConfig } from './ConfigContext';
 
 interface MobileDrawerProps {
     isOpen: boolean;
@@ -25,6 +26,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     userEmail,
     onLogout
 }) => {
+    const { company } = useConfig();
+
     const handleNavigate = (view: ViewState) => {
         onNavigate(view);
         onClose();
@@ -51,13 +54,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 {/* Header */}
                 <div className="p-4 border-b border-slate-700 bg-slate-900/50">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                                <Layers className="w-6 h-6 text-white" strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <h2 className="text-white font-bold text-lg">Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></h2>
-                                <p className="text-xs text-slate-400">{userEmail?.split('@')[0]}</p>
+                        <div className="flex items-center gap-3 truncate">
+                            {company?.logoUrl ? (
+                                <img src={company.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-contain bg-white/10 shrink-0" />
+                            ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+                                    <Layers className="w-6 h-6 text-white" strokeWidth={2.5} />
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <h2 className="text-white font-bold text-lg truncate">
+                                    {company?.name || <span>Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></span>}
+                                </h2>
+                                <p className="text-xs text-slate-400 truncate">{userEmail?.split('@')[0]}</p>
                             </div>
                         </div>
                         <button

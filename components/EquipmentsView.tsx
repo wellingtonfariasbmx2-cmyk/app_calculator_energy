@@ -185,15 +185,7 @@ export const EquipmentsView: React.FC = () => {
                 <span className="text-base sm:text-xl font-bold text-white leading-none">{inventoryStats.totalItems}</span>
               </div>
             </div>
-            <div className="bg-surface border border-slate-700/50 rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 shadow-lg hover:border-slate-600 transition-colors group lg:min-w-[140px]">
-              <div className="p-1.5 sm:p-2 bg-slate-800 rounded-lg text-yellow-500 shrink-0 group-hover:scale-110 transition-transform">
-                <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="overflow-hidden">
-                <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate">Capacidade</span>
-                <span className="text-base sm:text-xl font-bold text-white leading-none">{inventoryStats.totalKVA} <span className="text-[10px] sm:text-xs font-normal text-slate-400">kVA</span></span>
-              </div>
-            </div>
+
           </div>
         </div>
 

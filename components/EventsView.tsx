@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Plus, MapPin, Users, Clock, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, Search, ArrowUpDown, Package, TrendingUp, Timer } from 'lucide-react';
+import { Calendar, Plus, MapPin, Users, Clock, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, Search, ArrowUpDown, Package, TrendingUp, Timer, Share2 } from 'lucide-react';
 import { Event } from '../types';
 import { EventService } from '../services/EventService';
 import { useToast } from './Toast';
@@ -466,6 +466,69 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
 
                                     {/* Actions */}
                                     <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity self-end sm:self-start w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-700/50 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+
+                                                let equipList = '';
+                                                if (event.equipmentAllocations && event.equipmentAllocations.length > 0) {
+                                                    equipList = '\n\n*--- LISTA DE EQUIPAMENTOS ---*\n';
+                                                    event.equipmentAllocations.forEach(alloc => {
+                                                        const eq = alloc.equipment;
+                                                        const eqName = eq?.name || 'Equipamento';
+
+                                                        if (eq && eq.category === 'Painel de LED') {
+                                                            const w = eq.panelWidth || 0.5;
+                                                            const h = eq.panelHeight || 1.0;
+                                                            const qty = alloc.quantityAllocated;
+
+                                                            let bestW = 1;
+                                                            let bestH = qty;
+                                                            let bestRatioDiff = Infinity;
+                                                            const targetRatio = 16 / 9;
+
+                                                            for (let tryW = 1; tryW <= qty; tryW++) {
+                                                                if (qty % tryW === 0) {
+                                                                    const tryH = qty / tryW;
+                                                                    const currentRatio = (tryW * w) / (tryH * h);
+                                                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
+                                                                    if (ratioDiff < bestRatioDiff) {
+                                                                        bestRatioDiff = ratioDiff;
+                                                                        bestW = tryW;
+                                                                        bestH = tryH;
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            const panelsPerCase = eq.panelsPerCase || 6;
+                                                            const cases = Math.ceil(qty / panelsPerCase);
+
+                                                            equipList += `• ${qty}x ${eqName}\n`;
+                                                            equipList += `  ↳ Tamanho: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m\n`;
+                                                            equipList += `  ↳ Cases: ${cases} case(s)\n`;
+                                                        } else {
+                                                            equipList += `• ${alloc.quantityAllocated}x ${eqName}\n`;
+                                                        }
+                                                    });
+                                                } else {
+                                                    equipList = '\n\n*--- LISTA DE EQUIPAMENTOS ---*\n• Nenhum equipamento alocado ainda.\n';
+                                                }
+
+                                                const message = `*EVENTO: ${event.name}*\n\n` +
+                                                    `*DATA:* ${formatDate(event.startDate)}\n` +
+                                                    `*LOCAL:* ${event.venue}\n` +
+                                                    (event.setupTime ? `*HORÁRIO MONTAGEM:* ${event.setupTime}\n` : '') +
+                                                    (event.eventTime ? `*HORÁRIO EVENTO:* ${event.eventTime}\n` : '') +
+                                                    equipList +
+                                                    `\nEquipe, fiquem atentos aos detalhes e horários!`;
+
+                                                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+                                            }}
+                                            className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                            title="Compartilhar no WhatsApp"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
                                         {event.status === 'planned' && (
                                             <button
                                                 onClick={(e) => {
