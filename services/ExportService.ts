@@ -411,5 +411,152 @@ export const ExportService = {
 
         // Save
         doc.save(`Evento_${(event.name || 'relatorio').replace(/\s+/g, '_')}.pdf`);
+    },
+
+    /**
+     * Gera um PDF com a lista de eventos para uma semana ou mês
+     */
+    exportAgendaPDF: async (events: any[], title: string, companyParams?: { name?: string, logoUrl?: string }) => {
+        const { default: jsPDF } = await import('jspdf');
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        let y = 15;
+
+        const formatDatePT = (dateStr: string) => {
+            if (!dateStr) return '—';
+            const datePart = dateStr.split('T')[0].split(' ')[0];
+            const d = new Date(datePart + 'T12:00:00');
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+
+        const companyName = companyParams?.name || 'StageFlow PRO';
+
+        // ===== HEADER =====
+        doc.setFillColor(88, 28, 135);
+        doc.rect(0, 0, pageWidth, 35, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title.toUpperCase(), margin, 24);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 30);
+        doc.text(companyName, pageWidth - margin, 30, { align: 'right' });
+
+        y = 45;
+
+        if (events.length === 0) {
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(12);
+            doc.text('Nenhum evento encontrado para este período.', margin, y);
+        } else {
+            // Sort events by date ascending
+            const sortedEvents = [...events].sort((a, b) => {
+                const dateA = new Date(a.startDate + 'T12:00:00').getTime();
+                const dateB = new Date(b.startDate + 'T12:00:00').getTime();
+                return dateA - dateB;
+            });
+
+            sortedEvents.forEach((ev: any) => {
+                if (y > 260) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin, y - 5, pageWidth - margin * 2, 8, 'F');
+                doc.setTextColor(30, 30, 30);
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${formatDatePT(ev.startDate)} - ${ev.name}`, margin + 2, y);
+
+                y += 7;
+
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(60, 60, 60);
+
+                let details = '';
+                if (ev.clientName) details += `Cliente: ${ev.clientName} | `;
+                if (ev.venue) details += `Local: ${ev.venue} | `;
+                if (ev.setupTime) details += `Montagem: ${ev.setupTime} | `;
+                if (ev.eventTime) details += `Evento: ${ev.eventTime} | `;
+
+                // Trim trailing " | "
+                if (details.endsWith(' | ')) details = details.slice(0, -3);
+
+                if (details) {
+                    const splitDetails = doc.splitTextToSize(details, pageWidth - margin * 2 - 4);
+                    doc.text(splitDetails, margin + 4, y);
+                    y += splitDetails.length * 4.5;
+                }
+
+                if (ev.equipmentAllocations && ev.equipmentAllocations.length > 0) {
+                    doc.setFontSize(8);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setTextColor(100, 100, 100);
+
+                    doc.text('Equipamentos:', margin + 4, y);
+                    y += 4.5;
+
+                    ev.equipmentAllocations.forEach((alloc: any) => {
+                        const eq = alloc.equipment;
+                        const eqName = eq?.name || 'Equipamento';
+                        const qty = alloc.quantityAllocated;
+
+                        let extraInfo = '';
+                        if (eq && eq.category === 'Painel de LED') {
+                            const w = eq.panelWidth || eq.panel_width || 0.5;
+                            const h = eq.panelHeight || eq.panel_height || 1.0;
+
+                            let bestW = 1;
+                            let bestH = qty;
+                            let bestRatioDiff = Infinity;
+                            const targetRatio = 16 / 9;
+
+                            for (let tryW = 1; tryW <= qty; tryW++) {
+                                if (qty % tryW === 0) {
+                                    const tryH = qty / tryW;
+                                    const currentRatio = (tryW * w) / (tryH * h);
+                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
+                                    if (ratioDiff < bestRatioDiff) {
+                                        bestRatioDiff = ratioDiff;
+                                        bestW = tryW;
+                                        bestH = tryH;
+                                    }
+                                }
+                            }
+
+                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
+                            const cases = Math.ceil(qty / panelsPerCase);
+                            extraInfo = ` [Logística: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m - ${cases} case(s)]`;
+                        }
+
+                        const lineText = `• ${qty}x ${eqName}${extraInfo}`;
+                        const splitLine = doc.splitTextToSize(lineText, pageWidth - margin * 2 - 8);
+                        doc.text(splitLine, margin + 6, y);
+                        y += splitLine.length * 4.0;
+                    });
+                }
+
+                y += 2;
+            });
+        }
+
+        // ===== FOOTER =====
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, 285, pageWidth - margin, 285);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`${companyName} • ${title}`, margin, 291);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, 291, { align: 'right' });
+        }
+
+        doc.save(`${title.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
     }
 };

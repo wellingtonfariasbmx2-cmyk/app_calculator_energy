@@ -4,6 +4,7 @@ import { CalculatorView } from './CalculatorView';
 import { DistributionView } from './DistributionView';
 import { PowerSystemView } from './PowerSystemView';
 import { ReportsView } from './ReportsView';
+import { EquipmentsView } from './EquipmentsView';
 import { DistributionProject } from '../types';
 
 interface EnergyHubProps {
@@ -12,12 +13,13 @@ interface EnergyHubProps {
     onEditDistribution?: (project: DistributionProject) => void;
 }
 
-type EnergyTab = 'calculator' | 'distribution' | 'power-system' | 'reports';
+type EnergyTab = 'calculator' | 'distribution' | 'power-system' | 'reports' | 'equipments';
 
 export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdit, onEditDistribution }) => {
     const [activeTab, setActiveTab] = useState<EnergyTab>(initialProject ? 'distribution' : 'calculator');
 
     const tabs = [
+        { id: 'equipments' as EnergyTab, label: 'Equipamentos', icon: Zap, desc: 'Gerenciar aparelhos elétricos' },
         { id: 'calculator' as EnergyTab, label: 'Calculadora', icon: Calculator, desc: 'Calcule consumo de equipamentos' },
         { id: 'distribution' as EnergyTab, label: 'Distribuição', icon: FolderKanban, desc: 'Distribua circuitos entre fases' },
         { id: 'power-system' as EnergyTab, label: 'Elétrica', icon: Activity, desc: 'Mainpower trifásico' },
@@ -69,6 +71,7 @@ export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdi
 
             {/* Content */}
             <div className="animate-fade-in">
+                {activeTab === 'equipments' && <EquipmentsView />}
                 {activeTab === 'calculator' && <CalculatorView />}
                 {activeTab === 'distribution' && (
                     <DistributionView

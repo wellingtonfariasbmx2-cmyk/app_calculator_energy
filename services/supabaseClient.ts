@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Equipment, Calculation, DistributionProject, AnyReport } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || '';
+const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = (import.meta as any).env.VITE_SUPABASE_KEY || '';
 
 const isConfigured = SUPABASE_URL.length > 0 && SUPABASE_KEY.length > 0;
 
@@ -54,21 +54,26 @@ const equipmentFromDb = (dbItem: any): Equipment => ({
   panelsPerCase: dbItem.panels_per_case ? Number(dbItem.panels_per_case) : undefined
 });
 
-const reportToDb = (report: AnyReport): any => ({
-  id: report.id,
-  type: report.type,
-  name: report.name,
-  description: report.description,
-  technical_responsible: report.technicalResponsible,
-  voltage_system: report.voltageSystem,
-  total_watts: report.totalWatts,
-  total_amperes: report.totalAmperes,
-  items: report.type === 'simple' ? (report as Calculation).items : null,
-  ports: report.type === 'distribution' ? (report as DistributionProject).ports : null,
-  generator_config: report.type === 'distribution' ? (report as DistributionProject).generatorConfig : null,
-  mainpower_config: report.type === 'distribution' ? (report as DistributionProject).mainpowerConfig : null,
-  created_at: report.createdAt
-});
+
+const reportToDb = (report: AnyReport): any => {
+  const isEvent = report.type === 'event';
+  const rAny = report as any;
+  return {
+    id: report.id,
+    type: report.type,
+    name: report.name,
+    description: isEvent ? null : rAny.description,
+    technical_responsible: rAny.technicalResponsible,
+    voltage_system: isEvent ? null : rAny.voltageSystem,
+    total_watts: isEvent ? null : rAny.totalWatts,
+    total_amperes: isEvent ? null : rAny.totalAmperes,
+    items: report.type === 'simple' ? (report as Calculation).items : null,
+    ports: report.type === 'distribution' ? (report as DistributionProject).ports : null,
+    generator_config: report.type === 'distribution' ? (report as DistributionProject).generatorConfig : null,
+    mainpower_config: report.type === 'distribution' ? (report as DistributionProject).mainpowerConfig : null,
+    created_at: rAny.createdAt
+  };
+};
 
 const reportFromDb = (dbReport: any): AnyReport => {
   const base = {
@@ -125,6 +130,7 @@ export const DataService = {
     const { error } = await supabase.from('equipments').delete().eq('id', id);
     if (error) throw error;
   },
+
 
   getReports: async (): Promise<AnyReport[]> => {
     if (!isConfigured || !supabase) return [];

@@ -8,12 +8,19 @@ export interface Profile {
   updatedAt: string;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  theme?: string;
+}
+
 export interface Equipment {
   id: string;
   name: string;
   brand: string;
   model: string;
-  category: 'Moving Head' | 'Par Led' | 'Blinder' | 'Strobo' | 'Console' | 'Painel de LED' | 'Outros';
+  category: string; // Permitir qualquer categoria
   watts: number;
   voltage: number; // 110, 220, or fixed
   amperes: number; // calculated or manual

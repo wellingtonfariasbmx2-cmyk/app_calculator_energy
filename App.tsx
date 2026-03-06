@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap } from 'lucide-react';
+import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap, Package } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -170,7 +170,7 @@ function MainLayout() {
     { id: 'events', label: 'Eventos', icon: Calendar },
     { id: 'tv-dashboard', label: 'Dashboard', icon: Monitor },
     { id: 'availability', label: 'Disponibilidade', icon: TrendingUp },
-    { id: 'equipments', label: 'Equipamentos', icon: Zap },
+    { id: 'equipments', label: 'Materiais e Equip.', icon: Package },
     { id: 'maintenance', label: 'Manutenção', icon: Wrench },
     { id: 'energy', label: 'Energia', icon: Activity },
   ];

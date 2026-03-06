@@ -89,14 +89,18 @@ export const EquipmentsView: React.FC = () => {
 
   const openModal = (item?: Equipment) => {
     if (item) {
-      setEditingItem({ ...item });
+      setEditingItem({
+        ...item,
+        // Se watts vier como 0 ou null, garante que seja undefined para a UI
+        watts: item.watts ? item.watts : undefined
+      });
     } else {
       setEditingItem({
         name: '',
         brand: '',
         model: '',
-        category: 'Moving Head',
-        watts: 0,
+        category: 'Outros',
+        watts: undefined,
         voltage: 220,
         amperes: 0,
         powerFactor: 0.95,
@@ -169,8 +173,8 @@ export const EquipmentsView: React.FC = () => {
               <Zap className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Equipamentos</h1>
-              <p className="text-slate-400 text-xs sm:text-sm font-medium">Gerencie seu inventário técnico</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Materiais e Equipamentos</h1>
+              <p className="text-slate-400 text-xs sm:text-sm font-medium">Gerencie seu inventário geral</p>
             </div>
           </div>
 
@@ -210,7 +214,17 @@ export const EquipmentsView: React.FC = () => {
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
               <option value="all">Todas as Categorias</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              <option value="Audio">Áudio</option>
+              <option value="Iluminacao">Iluminação</option>
+              <option value="Painel de LED">Painel de LED</option>
+              <option value="Estrutura">Estrutura</option>
+              <option value="Cenario">Cenografia</option>
+              <option value="Energia">Elétrica/Cabos</option>
+              <option value="Video">Vídeo</option>
+              <option value="Tenda">Tenda</option>
+              <option value="Cadeira">Cadeira / Mobiliário</option>
+              <option value="Ferramenta">Ferramenta</option>
+              <option value="Outros">Outros</option>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none border-l border-slate-700 pl-3">
               <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-400"></div>
@@ -290,204 +304,256 @@ export const EquipmentsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 border-t border-slate-800/50 pt-4 mt-2">
-                <div>
-                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Potência</span>
-                  <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.watts}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">W</span></span>
-                </div>
-                <div>
-                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Tensão</span>
-                  <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.voltage}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">V</span></span>
-                </div>
-                <div>
-                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Corrente</span>
-                  <span className="text-blue-400 text-xs sm:text-sm font-bold font-mono">{formatNum(item.amperes)}<span className="text-blue-500/50 text-[10px] sm:text-xs ml-0.5">A</span></span>
-                </div>
-                <div>
-                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">F.P.</span>
-                  <span className="text-slate-300 text-xs sm:text-sm font-bold font-mono">{formatNum(item.powerFactor)}</span>
-                </div>
-                <div className="col-span-2 md:col-span-1 lg:text-right mt-2 md:mt-0">
-                  <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
-                  <span className="text-white text-xs sm:text-sm font-bold bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-[2rem] inline-block text-center">{item.quantityOwned}</span>
-                </div>
-
-                {item.category === 'Painel de LED' && (
-                  <div className="col-span-2 lg:col-span-5 bg-orange-500/5 border border-orange-500/10 rounded-lg p-2 mt-1 flex items-center gap-4">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 text-orange-400" />
-                      <span className="text-[10px] text-slate-400 uppercase font-bold">Módulo:</span>
-                      <span className="text-xs text-white font-bold">{item.panelWidth}x{item.panelHeight}m</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold">Logística:</span>
-                      <span className="text-xs text-white font-bold">{item.panelsPerCase} placas/case</span>
-                    </div>
+              {item.watts !== undefined && item.watts > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 border-t border-slate-800/50 pt-4 mt-2">
+                  <div>
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Potência</span>
+                    <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.watts}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">W</span></span>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Tensão</span>
+                    <span className="text-white text-xs sm:text-sm font-bold font-mono">{item.voltage}<span className="text-slate-500 text-[10px] sm:text-xs ml-0.5">V</span></span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Corrente</span>
+                    <span className="text-blue-400 text-xs sm:text-sm font-bold font-mono">{formatNum(item.amperes)}<span className="text-blue-500/50 text-[10px] sm:text-xs ml-0.5">A</span></span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">F.P.</span>
+                    <span className="text-slate-300 text-xs sm:text-sm font-bold font-mono">{formatNum(item.powerFactor)}</span>
+                  </div>
+                  <div className="col-span-2 md:col-span-1 lg:text-right mt-2 md:mt-0">
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
+                    <span className="text-white text-xs sm:text-sm font-bold bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-[2rem] inline-block text-center">{item.quantityOwned}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-t border-slate-800/50 pt-4 mt-2 flex justify-between items-center">
+                  <span className="text-slate-400 text-[10px] sm:text-xs font-medium italic">Não consome energia elétrica</span>
+                  <div className="text-right">
+                    <span className="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold mb-0.5">Estoque</span>
+                    <span className="text-white text-xs sm:text-sm font-bold bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-[2rem] inline-block text-center">{item.quantityOwned}</span>
+                  </div>
+                </div>
+              )}
+
+              {item.category === 'Painel de LED' && item.panelWidth && (
+                <div className="bg-orange-500/5 border border-orange-500/10 rounded-lg p-2 mt-3 flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Módulo:</span>
+                    <span className="text-xs text-white font-bold">{item.panelWidth}x{item.panelHeight}m</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Logística:</span>
+                    <span className="text-xs text-white font-bold">{item.panelsPerCase} placas/case</span>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
       {/* MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
-          <div className="bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
-              <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
-                <div className="p-1 sm:p-1.5 bg-blue-600 rounded-lg">
-                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                {editingItem.id ? 'Editar Equipamento' : 'Novo Equipamento'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg">
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 overflow-y-auto flex-1">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Equipamento</label>
-                <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-600"
-                  value={editingItem.name}
-                  onChange={e => handleFieldChange('name', e.target.value)}
-                  placeholder="Ex: Sharpy Plus, MA3 Light..."
-                />
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-1 gap-4 md:col-span-1">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Marca</label>
-                  <input className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none transition-all"
-                    value={editingItem.brand}
-                    onChange={e => handleFieldChange('brand', e.target.value)}
-                    placeholder="Ex: Clay Paky"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Modelo</label>
-                  <input className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none transition-all"
-                    value={editingItem.model}
-                    onChange={e => handleFieldChange('model', e.target.value)}
-                    placeholder="Ex: Hibrido"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-1 gap-4 md:col-span-1">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Categoria</label>
-                  <div className="relative">
-                    <select className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                      value={editingItem.category}
-                      onChange={e => handleFieldChange('category', e.target.value)}
-                    >
-                      {categories.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-500"></div>
-                    </div>
+      {
+        isModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
+            <div className="bg-surface border-x sm:border border-slate-700 sm:rounded-xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 my-auto h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden">
+              <div className="flex justify-between items-center p-3 sm:p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-xl sticky top-0 z-10">
+                <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                  <div className="p-1 sm:p-1.5 bg-blue-600 rounded-lg">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Estoque (Qtd)</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none"
-                    value={editingItem.quantityOwned === 0 ? '' : editingItem.quantityOwned}
-                    onChange={e => handleFieldChange('quantityOwned', e.target.value === '' ? 0 : parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              {editingItem.category === 'Painel de LED' && (
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-700/50 pt-4 mt-2">
-                  <div className="sm:col-span-3">
-                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
-                      <Package className="w-4 h-4 text-blue-500" /> Especificações do Painel
-                    </h3>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Largura Placa (m)</label>
-                    <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                      value={editingItem.panelWidth || ''}
-                      onChange={e => handleFieldChange('panelWidth', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                      placeholder="Ex: 0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Altura Placa (m)</label>
-                    <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                      value={editingItem.panelHeight || ''}
-                      onChange={e => handleFieldChange('panelHeight', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                      placeholder="Ex: 1.0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Placas por Case</label>
-                    <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                      value={editingItem.panelsPerCase || ''}
-                      onChange={e => handleFieldChange('panelsPerCase', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                      placeholder="Ex: 6"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="md:col-span-2 border-t border-slate-700/50 pt-4 mt-2">
-                <h3 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-yellow-500" /> Especificações Elétricas
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 md:col-span-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Potência (W)</label>
-                  <input type="number" inputMode="decimal" step="0.1" required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                    value={editingItem.watts === 0 ? '' : editingItem.watts}
-                    onChange={e => handleFieldChange('watts', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Tensão (V)</label>
-                  <select className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                    value={editingItem.voltage}
-                    onChange={e => handleFieldChange('voltage', Number(e.target.value))}
-                  >
-                    <option value={110}>110V</option>
-                    <option value={220}>220V</option>
-                    <option value={380}>380V</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Amperes (A)</label>
-                  <input type="number" readOnly className="w-full bg-slate-800/50 border border-slate-800 rounded-lg px-3 py-2.5 text-blue-400 font-bold font-mono cursor-not-allowed"
-                    value={editingItem.amperes}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Fator de Pot.</label>
-                  <input type="number" inputMode="decimal" step="0.01" max="1" min="0" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
-                    value={editingItem.powerFactor}
-                    onChange={e => handleFieldChange('powerFactor', parseFloat(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-700 sticky bottom-0 bg-surface">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="order-2 sm:order-1 px-6 py-3 sm:py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm">Cancelar</button>
-                <button type="submit" className="order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
-                  <Save className="w-4 h-4" /> Salvar
+                  {editingItem.id ? 'Editar Equipamento' : 'Novo Equipamento'}
+                </h2>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg">
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSave} className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 overflow-y-auto flex-1">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nome do Equipamento</label>
+                  <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-600"
+                    value={editingItem.name}
+                    onChange={e => handleFieldChange('name', e.target.value)}
+                    placeholder="Ex: Sharpy Plus, MA3 Light..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-1 gap-4 md:col-span-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Marca</label>
+                    <input className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none transition-all"
+                      value={editingItem.brand}
+                      onChange={e => handleFieldChange('brand', e.target.value)}
+                      placeholder="Ex: Clay Paky"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Modelo</label>
+                    <input className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none transition-all"
+                      value={editingItem.model}
+                      onChange={e => handleFieldChange('model', e.target.value)}
+                      placeholder="Ex: Hibrido"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-1 gap-4 md:col-span-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Categoria</label>
+                    <div className="relative">
+                      <select className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                        value={editingItem.category}
+                        onChange={e => handleFieldChange('category', e.target.value)}
+                      >
+                        <option value="Audio">Áudio</option>
+                        <option value="Iluminacao">Iluminação</option>
+                        <option value="Painel de LED">Painel de LED</option>
+                        <option value="Estrutura">Estrutura</option>
+                        <option value="Cenario">Cenografia</option>
+                        <option value="Energia">Elétrica/Cabos</option>
+                        <option value="Video">Vídeo</option>
+                        <option value="Tenda">Tenda</option>
+                        <option value="Cadeira">Cadeira / Mobiliário</option>
+                        <option value="Ferramenta">Ferramenta</option>
+                        <option value="Outros">Outros</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-500"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Estoque (Qtd)</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none"
+                      value={editingItem.quantityOwned === 0 ? '' : editingItem.quantityOwned}
+                      onChange={e => handleFieldChange('quantityOwned', e.target.value === '' ? 0 : parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                {editingItem.category === 'Painel de LED' && (
+                  <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-700/50 pt-4 mt-2">
+                    <div className="sm:col-span-3">
+                      <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                        <Package className="w-4 h-4 text-blue-500" /> Especificações do Painel
+                      </h3>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Largura Placa (m)</label>
+                      <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.panelWidth || ''}
+                        onChange={e => handleFieldChange('panelWidth', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        placeholder="Ex: 0.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Altura Placa (m)</label>
+                      <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.panelHeight || ''}
+                        onChange={e => handleFieldChange('panelHeight', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        placeholder="Ex: 1.0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Placas por Case</label>
+                      <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.panelsPerCase || ''}
+                        onChange={e => handleFieldChange('panelsPerCase', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                        placeholder="Ex: 6"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="md:col-span-2 border-t border-slate-700/50 pt-4 mt-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-yellow-500" /> Especificações Elétricas
+                    </h3>
+                    <label className="flex items-center gap-2 cursor-pointer bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors">
+                      <span className="text-[10px] sm:text-xs text-slate-300 font-bold uppercase tracking-wider">Consome Energia?</span>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800 cursor-pointer"
+                        checked={editingItem.watts !== undefined}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setEditingItem(prev => ({
+                              ...prev,
+                              watts: 100,
+                              voltage: 220,
+                              powerFactor: 1,
+                              amperes: parseFloat((100 / 220).toFixed(2))
+                            }));
+                          } else {
+                            setEditingItem(prev => ({
+                              ...prev,
+                              watts: undefined,
+                              voltage: 0,
+                              powerFactor: 1,
+                              amperes: 0
+                            }));
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {editingItem.watts !== undefined && (
+                  <div className="grid grid-cols-2 gap-4 md:col-span-2 animate-fade-in duration-300">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Potência (W)</label>
+                      <input type="number" inputMode="decimal" step="0.1" required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.watts === 0 ? '' : editingItem.watts}
+                        onChange={e => handleFieldChange('watts', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Tensão (V)</label>
+                      <select className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.voltage}
+                        onChange={e => handleFieldChange('voltage', Number(e.target.value))}
+                      >
+                        <option value={110}>110V</option>
+                        <option value={220}>220V</option>
+                        <option value={380}>380V</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Amperes (A)</label>
+                      <input type="number" readOnly className="w-full bg-slate-800/50 border border-slate-800 rounded-lg px-3 py-2.5 text-blue-400 font-bold font-mono cursor-not-allowed"
+                        value={editingItem.amperes}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Fator de Pot.</label>
+                      <input type="number" inputMode="decimal" step="0.01" max="1" min="0" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                        value={editingItem.powerFactor}
+                        onChange={e => handleFieldChange('powerFactor', parseFloat(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-700 sticky bottom-0 bg-surface">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="order-2 sm:order-1 px-6 py-3 sm:py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm">Cancelar</button>
+                  <button type="submit" className="order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                    <Save className="w-4 h-4" /> Salvar
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };

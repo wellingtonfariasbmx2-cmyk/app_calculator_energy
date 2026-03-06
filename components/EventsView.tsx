@@ -280,6 +280,85 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
         }
     };
 
+    const exportAgenda = async (period: 'week' | 'month', type: 'pdf' | 'whatsapp') => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const endDays = period === 'week' ? 7 : 30;
+        const title = period === 'week' ? 'Agenda da Semana' : 'Agenda do Mês';
+
+        const agendaEvents = events.filter(e => {
+            if (e.status !== 'planned' && e.status !== 'in_progress') return false;
+            const eDate = parseLocalDate(e.startDate);
+            eDate.setHours(0, 0, 0, 0);
+            const diffTime = eDate.getTime() - now.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= endDays;
+        }).sort((a, b) => parseLocalDate(a.startDate).getTime() - parseLocalDate(b.startDate).getTime());
+
+        if (type === 'pdf') {
+            const { ExportService } = await import('../services/ExportService');
+            await ExportService.exportAgendaPDF(agendaEvents, title);
+            success(`${title} gerada em PDF.`);
+        } else if (type === 'whatsapp') {
+            if (agendaEvents.length === 0) {
+                window.open(`https://wa.me/?text=${encodeURIComponent(`*${title}*\nNenhum evento programado.`)}`, '_blank');
+                return;
+            }
+
+            let message = `*${title.toUpperCase()}*\n\n`;
+            agendaEvents.forEach(ev => {
+                message += `🔹 *${parseLocalDate(ev.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${ev.name}*\n`;
+                if (ev.clientName) message += `   Cliente: ${ev.clientName}\n`;
+                if (ev.venue) message += `   Local: ${ev.venue}\n`;
+                if (ev.setupTime) message += `   Montagem: ${ev.setupTime}\n`;
+                if (ev.eventTime) message += `   Evento: ${ev.eventTime}\n`;
+
+                if (ev.equipmentAllocations && ev.equipmentAllocations.length > 0) {
+                    message += `   Equipamentos:\n`;
+                    ev.equipmentAllocations.forEach((alloc: any) => {
+                        const eq = alloc.equipment;
+                        const eqName = eq?.name || 'Equipamento';
+                        const qty = alloc.quantityAllocated;
+
+                        let extraInfo = '';
+                        if (eq && eq.category === 'Painel de LED') {
+                            const w = eq.panelWidth || eq.panel_width || 0.5;
+                            const h = eq.panelHeight || eq.panel_height || 1.0;
+
+                            let bestW = 1;
+                            let bestH = qty;
+                            let bestRatioDiff = Infinity;
+                            const targetRatio = 16 / 9;
+
+                            for (let tryW = 1; tryW <= qty; tryW++) {
+                                if (qty % tryW === 0) {
+                                    const tryH = qty / tryW;
+                                    const currentRatio = (tryW * w) / (tryH * h);
+                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
+                                    if (ratioDiff < bestRatioDiff) {
+                                        bestRatioDiff = ratioDiff;
+                                        bestW = tryW;
+                                        bestH = tryH;
+                                    }
+                                }
+                            }
+
+                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
+                            const cases = Math.ceil(qty / panelsPerCase);
+                            extraInfo = ` [Logística: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m - ${cases} case(s)]`;
+                        }
+
+                        message += `     • ${qty}x ${eqName}${extraInfo}\n`;
+                    });
+                }
+
+                message += '\n';
+            });
+
+            window.open(`https://wa.me/?text=${encodeURIComponent(message.trim())}`, '_blank');
+        }
+    };
+
     if (loading && !selectedEventId) return <LoadingScreen />;
 
     if (error && !selectedEventId) return <ErrorScreen message={error} onRetry={loadEvents} />;
@@ -377,9 +456,32 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                             className="w-full bg-surface border border-slate-700 rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 outline-none transition-all placeholder-slate-500"
                         />
                     </div>
+
+                    {/* Botão de Exportação e Compartilhamento */}
+                    <div className="relative group/export z-40">
+                        <button
+                            className="bg-surface border border-slate-700 text-slate-400 hover:text-white hover:border-purple-500/50 px-3 py-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold whitespace-nowrap w-full sm:w-auto h-full"
+                            title="Exportar e Compartilhar"
+                        >
+                            <Share2 className="w-4 h-4 text-purple-400" />
+                            <span className="hidden sm:inline">Compartilhar</span>
+                        </button>
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl opacity-0 invisible group-hover/export:opacity-100 group-hover/export:visible transition-all z-50 overflow-hidden transform origin-top-right">
+                            <div className="p-1">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase px-3 py-2 bg-slate-800/50">Semana (Próx. 7 dias)</div>
+                                <button onClick={() => exportAgenda('week', 'pdf')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">📄 Gerar PDF</button>
+                                <button onClick={() => exportAgenda('week', 'whatsapp')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">💬 WhatsApp</button>
+
+                                <div className="text-[10px] font-bold text-slate-500 uppercase px-3 py-2 mt-1 border-t border-slate-700 bg-slate-800/50">Mês (Próx. 30 dias)</div>
+                                <button onClick={() => exportAgenda('month', 'pdf')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">📄 Gerar PDF</button>
+                                <button onClick={() => exportAgenda('month', 'whatsapp')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">💬 WhatsApp</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <button
                         onClick={toggleSort}
-                        className="bg-surface border border-slate-700 text-slate-400 hover:text-white hover:border-purple-500/50 px-3 py-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold whitespace-nowrap"
+                        className="bg-surface border border-slate-700 text-slate-400 hover:text-white hover:border-purple-500/50 px-3 py-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold whitespace-nowrap h-full"
                         title={`Ordenar por ${sortBy === 'date' ? 'Nome' : 'Data'}`}
                     >
                         <ArrowUpDown className="w-3.5 h-3.5" />

@@ -253,8 +253,9 @@ export const CalculatorView: React.FC = () => {
 
   // Filtered equipments for modal
   const filteredEquipmentsToAdd = equipments.filter(eq =>
-    eq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    eq.brand.toLowerCase().includes(searchQuery.toLowerCase())
+    (eq.watts ?? 0) > 0 &&
+    (eq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      eq.brand.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   // --- Render ---

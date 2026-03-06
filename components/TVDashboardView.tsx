@@ -447,7 +447,15 @@ function DashboardSection({ title, icon: Icon, count, color, children }: { title
     );
 }
 
-function EventCard({ event, isNew, formatDate, statusColors, statusLabels }: { event: Event; isNew: boolean; formatDate: (s: string) => string; statusColors: Record<string, string>; statusLabels: Record<string, string> }) {
+interface EventCardProps {
+    event: Event;
+    isNew: boolean;
+    formatDate: (s: string) => string;
+    statusColors: Record<string, string>;
+    statusLabels: Record<string, string>;
+}
+
+const EventCard: React.FC<EventCardProps> = ({ event, isNew, formatDate, statusColors, statusLabels }) => {
     return (
         <div className={`rounded-xl border p-4 transition-all ${isNew
             ? 'bg-emerald-900/20 border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
