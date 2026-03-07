@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Plus, MapPin, Users, Clock, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, Search, ArrowUpDown, Package, TrendingUp, Timer, Share2 } from 'lucide-react';
 import { Event } from '../types';
 import { EventService } from '../services/EventService';
+import { getLEDLogistics, getLEDDisplayMode, setLEDDisplayMode, LEDDisplayMode } from '../utils/ledPanelCalc';
 import { useToast } from './Toast';
 import { EventModal } from './EventModal';
 import { EventDetailView } from './EventDetailView';
@@ -24,6 +25,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [ledMode, setLedMode] = useState<LEDDisplayMode>(getLEDDisplayMode());
 
     const { success, error: showError } = useToast();
     const { confirm, ConfirmModalComponent } = useConfirm();
@@ -322,30 +324,38 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
 
                         let extraInfo = '';
                         if (eq && eq.category === 'Painel de LED') {
-                            const w = eq.panelWidth || eq.panel_width || 0.5;
-                            const h = eq.panelHeight || eq.panel_height || 1.0;
+                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
+                            const led = getLEDLogistics(
+                                eq.panelWidth || (eq as any).panel_width || 0.5,
+                                eq.panelHeight || (eq as any).panel_height || 1.0,
+                                qty,
+                                panelsPerCase
+                            );
+                            extraInfo = ` [Logística: ${led.sizeLabel} - ${led.cases} case(s)]`;
+                        }
 
-                            let bestW = 1;
-                            let bestH = qty;
-                            let bestRatioDiff = Infinity;
-                            const targetRatio = 16 / 9;
+                        // Case numbering info
+                        const upc = Number(eq?.unitsPerCase) || Number(eq?.units_per_case) || 0;
+                        if (upc > 0) {
+                            const prefix = eq?.casePrefix || eq?.case_prefix || 'C';
+                            const allocCases: number[] = alloc.allocatedCases || alloc.allocated_cases || [];
+                            let labels = [];
 
-                            for (let tryW = 1; tryW <= qty; tryW++) {
-                                if (qty % tryW === 0) {
-                                    const tryH = qty / tryW;
-                                    const currentRatio = (tryW * w) / (tryH * h);
-                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
-                                    if (ratioDiff < bestRatioDiff) {
-                                        bestRatioDiff = ratioDiff;
-                                        bestW = tryW;
-                                        bestH = tryH;
-                                    }
+                            if (allocCases.length > 0) {
+                                for (const cn of allocCases) {
+                                    const s = String((cn - 1) * upc + 1).padStart(2, '0');
+                                    const e2 = String(Math.min(cn * upc, eq?.quantityOwned || cn * upc)).padStart(2, '0');
+                                    labels.push(`${prefix}-${cn} (${s}-${e2})`);
+                                }
+                            } else {
+                                const totalCases = Math.ceil(qty / upc);
+                                for (let c = 0; c < totalCases; c++) {
+                                    const s = String(c * upc + 1).padStart(2, '0');
+                                    const e2 = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                    labels.push(`${prefix}-${c + 1} (${s}-${e2})`);
                                 }
                             }
-
-                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
-                            const cases = Math.ceil(qty / panelsPerCase);
-                            extraInfo = ` [Logística: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m - ${cases} case(s)]`;
+                            extraInfo += ` [Cases: ${labels.join(', ')}]`;
                         }
 
                         message += `     • ${qty}x ${eqName}${extraInfo}\n`;
@@ -468,6 +478,18 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                         </button>
                         <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl opacity-0 invisible group-hover/export:opacity-100 group-hover/export:visible transition-all z-50 overflow-hidden transform origin-top-right">
                             <div className="p-1">
+                                {/* LED Display Mode Toggle */}
+                                <button
+                                    onClick={() => {
+                                        const next = ledMode === 'dimensions' ? 'area' : 'dimensions';
+                                        setLEDDisplayMode(next);
+                                        setLedMode(next);
+                                    }}
+                                    className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-amber-400 rounded-lg flex items-center gap-2 transition-colors"
+                                >
+                                    📐 LED: {ledMode === 'dimensions' ? 'Largura x Altura' : 'Metros Quadrados (m²)'}
+                                </button>
+                                <div className="border-t border-slate-700 my-1"></div>
                                 <div className="text-[10px] font-bold text-slate-500 uppercase px-3 py-2 bg-slate-800/50">Semana (Próx. 7 dias)</div>
                                 <button onClick={() => exportAgenda('week', 'pdf')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">📄 Gerar PDF</button>
                                 <button onClick={() => exportAgenda('week', 'whatsapp')} className="w-full text-left px-3 py-2 hover:bg-slate-700 text-sm text-white rounded-lg flex items-center gap-2 transition-colors">💬 WhatsApp</button>
@@ -580,36 +602,69 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                                                         const eqName = eq?.name || 'Equipamento';
 
                                                         if (eq && eq.category === 'Painel de LED') {
-                                                            const w = eq.panelWidth || 0.5;
-                                                            const h = eq.panelHeight || 1.0;
                                                             const qty = alloc.quantityAllocated;
-
-                                                            let bestW = 1;
-                                                            let bestH = qty;
-                                                            let bestRatioDiff = Infinity;
-                                                            const targetRatio = 16 / 9;
-
-                                                            for (let tryW = 1; tryW <= qty; tryW++) {
-                                                                if (qty % tryW === 0) {
-                                                                    const tryH = qty / tryW;
-                                                                    const currentRatio = (tryW * w) / (tryH * h);
-                                                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
-                                                                    if (ratioDiff < bestRatioDiff) {
-                                                                        bestRatioDiff = ratioDiff;
-                                                                        bestW = tryW;
-                                                                        bestH = tryH;
-                                                                    }
-                                                                }
-                                                            }
-
-                                                            const panelsPerCase = eq.panelsPerCase || 6;
-                                                            const cases = Math.ceil(qty / panelsPerCase);
+                                                            const led = getLEDLogistics(
+                                                                eq.panelWidth || 0.5,
+                                                                eq.panelHeight || 1.0,
+                                                                qty,
+                                                                eq.panelsPerCase || 6
+                                                            );
 
                                                             equipList += `• ${qty}x ${eqName}\n`;
-                                                            equipList += `  ↳ Tamanho: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m\n`;
-                                                            equipList += `  ↳ Cases: ${cases} case(s)\n`;
+                                                            equipList += `  ↳ Tamanho: ${led.sizeLabel}\n`;
+                                                            equipList += `  ↳ Cases: ${led.cases} case(s)\n`;
+
+                                                            // Case numbering for LED
+                                                            const upc = eq.unitsPerCase || 0;
+                                                            if (upc > 0) {
+                                                                const prefix = eq.casePrefix || 'C';
+                                                                const allocCases: number[] = alloc.allocatedCases || [];
+                                                                let labels = [];
+
+                                                                if (allocCases.length > 0) {
+                                                                    for (const cn of allocCases) {
+                                                                        const s = String((cn - 1) * upc + 1).padStart(2, '0');
+                                                                        const e2 = String(Math.min(cn * upc, eq.quantityOwned || cn * upc)).padStart(2, '0');
+                                                                        labels.push(`${prefix}-${cn} (${s}-${e2})`);
+                                                                    }
+                                                                } else {
+                                                                    const totalCases = Math.ceil(qty / upc);
+                                                                    for (let c = 0; c < totalCases; c++) {
+                                                                        const s = String(c * upc + 1).padStart(2, '0');
+                                                                        const e2 = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                                                        labels.push(`${prefix}-${c + 1} (${s}-${e2})`);
+                                                                    }
+                                                                }
+                                                                equipList += `  ↳ Numeração: ${labels.join(', ')}\n`;
+                                                            }
                                                         } else {
-                                                            equipList += `• ${alloc.quantityAllocated}x ${eqName}\n`;
+                                                            const qty = alloc.quantityAllocated;
+                                                            equipList += `• ${qty}x ${eqName}`;
+
+                                                            // Case numbering for non-LED
+                                                            const upc = eq?.unitsPerCase || 0;
+                                                            if (upc > 0) {
+                                                                const prefix = eq?.casePrefix || 'C';
+                                                                const allocCases: number[] = alloc.allocatedCases || [];
+                                                                let labels = [];
+
+                                                                if (allocCases.length > 0) {
+                                                                    for (const cn of allocCases) {
+                                                                        const s = String((cn - 1) * upc + 1).padStart(2, '0');
+                                                                        const e2 = String(Math.min(cn * upc, eq?.quantityOwned || cn * upc)).padStart(2, '0');
+                                                                        labels.push(`${prefix}-${cn} (${s}-${e2})`);
+                                                                    }
+                                                                } else {
+                                                                    const totalCases = Math.ceil(qty / upc);
+                                                                    for (let c = 0; c < totalCases; c++) {
+                                                                        const s = String(c * upc + 1).padStart(2, '0');
+                                                                        const e2 = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                                                        labels.push(`${prefix}-${c + 1} (${s}-${e2})`);
+                                                                    }
+                                                                }
+                                                                equipList += `\n  ↳ Cases: ${labels.join(', ')}`;
+                                                            }
+                                                            equipList += `\n`;
                                                         }
                                                     });
                                                 } else {
@@ -621,8 +676,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                                                     `*LOCAL:* ${event.venue}\n` +
                                                     (event.setupTime ? `*HORÁRIO MONTAGEM:* ${event.setupTime}\n` : '') +
                                                     (event.eventTime ? `*HORÁRIO EVENTO:* ${event.eventTime}\n` : '') +
-                                                    equipList +
-                                                    `\nEquipe, fiquem atentos aos detalhes e horários!`;
+                                                    equipList;
 
                                                 window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
                                             }}

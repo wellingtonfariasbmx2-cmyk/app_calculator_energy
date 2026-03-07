@@ -1,4 +1,5 @@
 import { getCableSpecs } from '../utils/cableCalculations';
+import { getLEDLogistics } from '../utils/ledPanelCalc';
 
 export const ExportService = {
     /**
@@ -337,30 +338,11 @@ export const ExportService = {
                 if (eq?.category === 'Painel de LED') {
                     y += 4.5;
 
-                    const w = eq.panelWidth || eq.panel_width || 0.5;
-                    const h = eq.panelHeight || eq.panel_height || 1.0;
+                    const panelW = eq.panelWidth || eq.panel_width || 0.5;
+                    const panelH = eq.panelHeight || eq.panel_height || 1.0;
                     const qty = alloc.quantityAllocated;
-
-                    let bestW = 1;
-                    let bestH = qty;
-                    let bestRatioDiff = Infinity;
-                    const targetRatio = 16 / 9;
-
-                    for (let tryW = 1; tryW <= qty; tryW++) {
-                        if (qty % tryW === 0) {
-                            const tryH = qty / tryW;
-                            const currentRatio = (tryW * w) / (tryH * h);
-                            const ratioDiff = Math.abs(currentRatio - targetRatio);
-                            if (ratioDiff < bestRatioDiff) {
-                                bestRatioDiff = ratioDiff;
-                                bestW = tryW;
-                                bestH = tryH;
-                            }
-                        }
-                    }
-
                     const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
-                    const cases = Math.ceil(qty / panelsPerCase);
+                    const led = getLEDLogistics(panelW, panelH, qty, panelsPerCase);
 
                     // Optional subtle background to separate the LED info inside the cell
                     doc.setFillColor(255, 248, 240); // very soft orange
@@ -369,10 +351,76 @@ export const ExportService = {
                     doc.setFontSize(7);
                     doc.setTextColor(150, 80, 0); // Orange-ish
                     doc.setFont('helvetica', 'bold');
-                    doc.text(`> LOGÍSTICA LED: Tamanho ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m (${qty} placas em ${cases} case(s))`, margin + 2, y);
+                    doc.text(`> LOGÍSTICA LED: Tamanho ${led.sizeLabel} (${qty} placas em ${led.cases} case(s))`, margin + 2, y);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(40, 40, 40);
                     doc.setFontSize(9);
+                }
+
+                // Case numbering info
+                const upc = Number(eq?.unitsPerCase) || Number(eq?.units_per_case) || 0;
+                if (upc > 0) {
+                    y += 4.5;
+                    const prefix = eq?.casePrefix || eq?.case_prefix || 'C';
+                    const allocCases: number[] = alloc.allocatedCases || alloc.allocated_cases || [];
+                    let caseLabels: { name: string; range: string }[] = [];
+
+                    if (allocCases.length > 0) {
+                        for (const caseNum of allocCases) {
+                            const start = String((caseNum - 1) * upc + 1).padStart(2, '0');
+                            const end = String(Math.min(caseNum * upc, eq?.quantityOwned || caseNum * upc)).padStart(2, '0');
+                            caseLabels.push({ name: `${prefix}-${caseNum}`, range: `${start}-${end}` });
+                        }
+                    } else {
+                        const qty = alloc.quantityAllocated;
+                        const totalCases = Math.ceil(qty / upc);
+                        for (let c = 0; c < totalCases; c++) {
+                            const start = String(c * upc + 1).padStart(2, '0');
+                            const end = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                            caseLabels.push({ name: `${prefix}-${c + 1}`, range: `${start}-${end}` });
+                        }
+                    }
+
+                    // Draw "CASES:" label
+                    doc.setFontSize(6.5);
+                    doc.setTextColor(130, 100, 0);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('CASES:', margin + 2, y);
+
+                    // Draw individual case badges
+                    let badgeX = margin + 22;
+                    const badgeH = 5;
+                    const badgeGap = 2;
+                    const maxX = pageWidth - margin;
+
+                    for (const label of caseLabels) {
+                        const text = `${label.name} (${label.range})`;
+                        const textW = doc.getTextWidth(text) + 4;
+
+                        // Wrap to next line if needed
+                        if (badgeX + textW > maxX) {
+                            y += badgeH + 1.5;
+                            badgeX = margin + 22;
+                        }
+
+                        // Badge background
+                        doc.setFillColor(255, 243, 205); // warm amber bg
+                        doc.setDrawColor(210, 170, 60);   // amber border
+                        doc.roundedRect(badgeX, y - 3.5, textW, badgeH, 1.2, 1.2, 'FD');
+
+                        // Badge text
+                        doc.setFontSize(6.5);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(120, 80, 0);
+                        doc.text(text, badgeX + 2, y);
+
+                        badgeX += textW + badgeGap;
+                    }
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(40, 40, 40);
+                    doc.setFontSize(9);
+                    doc.setDrawColor(230, 230, 230);
                 }
 
                 // Alternating row bg / Separator line under the ENTIRE equipment row
@@ -508,36 +556,104 @@ export const ExportService = {
 
                         let extraInfo = '';
                         if (eq && eq.category === 'Painel de LED') {
-                            const w = eq.panelWidth || eq.panel_width || 0.5;
-                            const h = eq.panelHeight || eq.panel_height || 1.0;
+                            const panelW = eq.panelWidth || eq.panel_width || 0.5;
+                            const panelH = eq.panelHeight || eq.panel_height || 1.0;
+                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
+                            const led = getLEDLogistics(panelW, panelH, qty, panelsPerCase);
+                            extraInfo = ` [Logística: ${led.sizeLabel} - ${led.cases} case(s)]`;
+                        }
 
-                            let bestW = 1;
-                            let bestH = qty;
-                            let bestRatioDiff = Infinity;
-                            const targetRatio = 16 / 9;
+                        // Case numbering info - draw as badges
+                        const upc = Number(eq?.unitsPerCase) || Number(eq?.units_per_case) || 0;
+                        if (upc > 0) {
+                            const prefix = eq?.casePrefix || eq?.case_prefix || 'C';
+                            const allocCases: number[] = alloc.allocatedCases || alloc.allocated_cases || [];
+                            let caseBadges: { name: string; range: string }[] = [];
 
-                            for (let tryW = 1; tryW <= qty; tryW++) {
-                                if (qty % tryW === 0) {
-                                    const tryH = qty / tryW;
-                                    const currentRatio = (tryW * w) / (tryH * h);
-                                    const ratioDiff = Math.abs(currentRatio - targetRatio);
-                                    if (ratioDiff < bestRatioDiff) {
-                                        bestRatioDiff = ratioDiff;
-                                        bestW = tryW;
-                                        bestH = tryH;
-                                    }
+                            if (allocCases.length > 0) {
+                                for (const caseNum of allocCases) {
+                                    const s = String((caseNum - 1) * upc + 1).padStart(2, '0');
+                                    const e = String(Math.min(caseNum * upc, eq?.quantityOwned || caseNum * upc)).padStart(2, '0');
+                                    caseBadges.push({ name: `${prefix}-${caseNum}`, range: `${s}-${e}` });
+                                }
+                            } else {
+                                const totalCases = Math.ceil(qty / upc);
+                                for (let c = 0; c < totalCases; c++) {
+                                    const s = String(c * upc + 1).padStart(2, '0');
+                                    const e = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                    caseBadges.push({ name: `${prefix}-${c + 1}`, range: `${s}-${e}` });
                                 }
                             }
 
-                            const panelsPerCase = Number(eq.panelsPerCase) || Number(eq.panels_per_case) || 6;
-                            const cases = Math.ceil(qty / panelsPerCase);
-                            extraInfo = ` [Logística: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m - ${cases} case(s)]`;
+                            // Remove case text from extraInfo since we draw badges
+                            // Draw equipment line without cases
                         }
 
                         const lineText = `• ${qty}x ${eqName}${extraInfo}`;
                         const splitLine = doc.splitTextToSize(lineText, pageWidth - margin * 2 - 8);
                         doc.text(splitLine, margin + 6, y);
                         y += splitLine.length * 4.0;
+
+                        // Draw case badges below equipment line
+                        if (upc > 0) {
+                            const prefix = eq?.casePrefix || eq?.case_prefix || 'C';
+                            const allocCases2: number[] = alloc.allocatedCases || alloc.allocated_cases || [];
+                            let caseBadges: { name: string; range: string }[] = [];
+
+                            if (allocCases2.length > 0) {
+                                for (const caseNum of allocCases2) {
+                                    const s = String((caseNum - 1) * upc + 1).padStart(2, '0');
+                                    const e = String(Math.min(caseNum * upc, eq?.quantityOwned || caseNum * upc)).padStart(2, '0');
+                                    caseBadges.push({ name: `${prefix}-${caseNum}`, range: `${s}-${e}` });
+                                }
+                            } else {
+                                const totalCases = Math.ceil(qty / upc);
+                                for (let c = 0; c < totalCases; c++) {
+                                    const s = String(c * upc + 1).padStart(2, '0');
+                                    const e = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                    caseBadges.push({ name: `${prefix}-${c + 1}`, range: `${s}-${e}` });
+                                }
+                            }
+
+                            // Label
+                            doc.setFontSize(6);
+                            doc.setTextColor(130, 100, 0);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('CASES:', margin + 8, y + 1);
+
+                            // Badges
+                            let bx = margin + 24;
+                            const bh = 4.5;
+                            const bgap = 1.5;
+                            const mxX = pageWidth - margin;
+
+                            for (const badge of caseBadges) {
+                                const txt = `${badge.name} (${badge.range})`;
+                                const tw = doc.getTextWidth(txt) + 3.5;
+
+                                if (bx + tw > mxX) {
+                                    y += bh + 1;
+                                    bx = margin + 24;
+                                }
+
+                                doc.setFillColor(255, 243, 205);
+                                doc.setDrawColor(210, 170, 60);
+                                doc.roundedRect(bx, y - 2.5, tw, bh, 1, 1, 'FD');
+
+                                doc.setFontSize(6);
+                                doc.setFont('helvetica', 'bold');
+                                doc.setTextColor(120, 80, 0);
+                                doc.text(txt, bx + 1.8, y + 0.8);
+
+                                bx += tw + bgap;
+                            }
+
+                            y += bh + 1;
+                            doc.setFont('helvetica', 'normal');
+                            doc.setTextColor(40, 40, 40);
+                            doc.setFontSize(8);
+                            doc.setDrawColor(230, 230, 230);
+                        }
                     });
                 }
 

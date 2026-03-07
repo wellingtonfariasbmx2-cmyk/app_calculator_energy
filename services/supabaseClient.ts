@@ -26,7 +26,7 @@ const equipmentToDb = (item: Equipment): any => ({
   brand: item.brand,
   model: item.model,
   category: item.category,
-  watts: item.watts,
+  watts: item.watts ?? 0,
   voltage: item.voltage,
   amperes: item.amperes,
   power_factor: item.powerFactor,
@@ -34,7 +34,9 @@ const equipmentToDb = (item: Equipment): any => ({
   status: item.status,
   panel_width: item.panelWidth,
   panel_height: item.panelHeight,
-  panels_per_case: item.panelsPerCase
+  panels_per_case: item.panelsPerCase,
+  units_per_case: item.unitsPerCase,
+  case_prefix: item.casePrefix
 });
 
 const equipmentFromDb = (dbItem: any): Equipment => ({
@@ -51,7 +53,9 @@ const equipmentFromDb = (dbItem: any): Equipment => ({
   status: dbItem.status || 'active',
   panelWidth: dbItem.panel_width ? Number(dbItem.panel_width) : undefined,
   panelHeight: dbItem.panel_height ? Number(dbItem.panel_height) : undefined,
-  panelsPerCase: dbItem.panels_per_case ? Number(dbItem.panels_per_case) : undefined
+  panelsPerCase: dbItem.panels_per_case ? Number(dbItem.panels_per_case) : undefined,
+  unitsPerCase: dbItem.units_per_case ? Number(dbItem.units_per_case) : undefined,
+  casePrefix: dbItem.case_prefix || undefined
 });
 
 

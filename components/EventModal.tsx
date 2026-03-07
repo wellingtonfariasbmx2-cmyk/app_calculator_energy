@@ -37,6 +37,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     const [equipments, setEquipments] = useState<Equipment[]>([]);
     const [selectedEquipments, setSelectedEquipments] = useState<EquipmentAllocation[]>([]);
     const [availabilityMap, setAvailabilityMap] = useState<Record<string, number>>({});
+    const [occupiedCasesMap, setOccupiedCasesMap] = useState<Record<string, number[]>>({});
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingQty, setEditingQty] = useState<Record<string, string>>({});
@@ -125,6 +126,27 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         }
 
         setAvailabilityMap(map);
+
+        // Load occupied cases for equipment with unitsPerCase
+        if (formData.startDate && formData.endDate) {
+            const casesMap: Record<string, number[]> = {};
+            for (const eq of equipments) {
+                if (eq.unitsPerCase && eq.unitsPerCase > 0) {
+                    try {
+                        const occupied = await EventService.getOccupiedCases(
+                            eq.id,
+                            formData.startDate,
+                            formData.endDate,
+                            event?.id
+                        );
+                        casesMap[eq.id] = occupied;
+                    } catch (err) {
+                        console.error(`Erro ao buscar cases ocupados para ${eq.id}:`, err);
+                    }
+                }
+            }
+            setOccupiedCasesMap(casesMap);
+        }
     };
 
     const resetForm = () => {
@@ -157,14 +179,36 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
             return;
         }
 
+        // Auto-select available cases if equipment has unitsPerCase
+        let autoAllocatedCases: number[] | undefined;
+        let autoQty = 1;
+
+        if (equipment.unitsPerCase && equipment.unitsPerCase > 0) {
+            const upc = equipment.unitsPerCase;
+            const totalCases = Math.ceil((equipment.quantityOwned || 0) / upc);
+            const occupied = occupiedCasesMap[equipment.id] || [];
+            const availableCases = Array.from({ length: totalCases }, (_, i) => i + 1)
+                .filter(c => !occupied.includes(c));
+
+            if (availableCases.length === 0) {
+                showError(`${equipment.name}: todos os cases estão ocupados neste período`);
+                return;
+            }
+
+            // Auto-select first available case
+            autoAllocatedCases = [availableCases[0]];
+            autoQty = Math.min(upc, available);
+        }
+
         const newAllocation: EquipmentAllocation = {
             id: crypto.randomUUID(),
             eventId: event?.id || '',
             equipmentId: equipment.id,
             equipment,
-            quantityAllocated: 1,
+            quantityAllocated: autoQty,
             status: 'allocated',
             allocatedAt: new Date().toISOString(),
+            allocatedCases: autoAllocatedCases,
         };
 
         setSelectedEquipments([...selectedEquipments, newAllocation]);
@@ -173,11 +217,38 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
     const handleUpdateQuantity = (allocationId: string, quantity: number) => {
         setSelectedEquipments(prev =>
-            prev.map(alloc =>
-                alloc.id === allocationId
-                    ? { ...alloc, quantityAllocated: Math.max(0, quantity) }
-                    : alloc
-            )
+            prev.map(alloc => {
+                if (alloc.id === allocationId) {
+                    const eq = alloc.equipment;
+                    const upc = eq.unitsPerCase || 0;
+                    
+                    // If no cases configured, just update quantity naturally
+                    if (upc <= 0) {
+                        return { ...alloc, quantityAllocated: Math.max(0, quantity) };
+                    }
+                    
+                    // Handle case auto-selection based on new quantity
+                    const totalCases = Math.ceil((eq.quantityOwned || 0) / upc);
+                    const occupied = occupiedCasesMap[eq.id] || [];
+                    const availableCases = Array.from({ length: totalCases }, (_, i) => i + 1)
+                        .filter(c => !occupied.includes(c));
+                    
+                    const neededCasesCount = Math.ceil(quantity / upc);
+                    
+                    // Take the first available cases up to neededCasesCount
+                    const newAllocatedCases = availableCases.slice(0, neededCasesCount);
+                    
+                    // Adjust quantity to match the selected cases if limited by availability
+                    const finalQty = Math.min(quantity, newAllocatedCases.length * upc, eq.quantityOwned || quantity);
+                    
+                    return { 
+                        ...alloc, 
+                        quantityAllocated: finalQty,
+                        allocatedCases: newAllocatedCases
+                    };
+                }
+                return alloc;
+            })
         );
     };
 
@@ -563,7 +634,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                             return acc;
                                         }, {} as Record<string, Equipment[]>);
 
-                                        const sortedCategories = categoryOrder.filter(c => grouped[c]);
+                                        // Include ALL categories from the data, not just hardcoded ones
+                                        const allCategories = Object.keys(grouped);
+                                        const sortedCategories = [
+                                            ...categoryOrder.filter(c => grouped[c]),
+                                            ...allCategories.filter(c => !categoryOrder.includes(c))
+                                        ];
 
                                         if (sortedCategories.length === 0) {
                                             return (
@@ -629,54 +705,59 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                                                 </div>
 
                                                                 {/* Action row */}
-                                                                <div className="mt-3 flex items-center gap-2">
+                                                                <div className="mt-3 flex items-center gap-2 sm:gap-3">
                                                                     {isSelected ? (
                                                                         <>
-                                                                            {/* Editable quantity */}
-                                                                            <div className="flex items-center gap-1 bg-slate-800 rounded-lg border border-slate-700 p-1">
-                                                                                <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated - 1)} disabled={alloc!.quantityAllocated <= 1} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
-                                                                                    <Minus className="w-4 h-4" />
-                                                                                </button>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    inputMode="numeric"
-                                                                                    value={editingQty[alloc!.id] !== undefined ? editingQty[alloc!.id] : alloc!.quantityAllocated}
-                                                                                    onChange={e => {
-                                                                                        const raw = e.target.value.replace(/[^0-9]/g, '');
-                                                                                        setEditingQty(prev => ({ ...prev, [alloc!.id]: raw }));
-                                                                                    }}
-                                                                                    onFocus={e => {
-                                                                                        setEditingQty(prev => ({ ...prev, [alloc!.id]: String(alloc!.quantityAllocated) }));
-                                                                                        setTimeout(() => e.target.select(), 0);
-                                                                                    }}
-                                                                                    onBlur={() => {
-                                                                                        const raw = editingQty[alloc!.id];
-                                                                                        const val = parseInt(raw) || 1;
-                                                                                        const clamped = Math.min(Math.max(val, 1), available);
-                                                                                        handleUpdateQuantity(alloc!.id, clamped);
-                                                                                        setEditingQty(prev => { const next = { ...prev }; delete next[alloc!.id]; return next; });
-                                                                                    }}
-                                                                                    onKeyDown={e => {
-                                                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                                                                    }}
-                                                                                    className="w-14 h-8 bg-slate-900 border border-slate-600 rounded-md text-white text-center text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 outline-none"
-                                                                                />
-                                                                                <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated + 1)} disabled={alloc!.quantityAllocated >= available} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
-                                                                                    <Plus className="w-4 h-4" />
+                                                                            <div className="flex items-center gap-2">
+                                                                                {/* Editable quantity */}
+                                                                                <div className="flex items-center gap-1 bg-slate-800 rounded-lg border border-slate-700 p-1">
+                                                                                    <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated - 1)} disabled={alloc!.quantityAllocated <= 1} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
+                                                                                        <Minus className="w-4 h-4" />
+                                                                                    </button>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        inputMode="numeric"
+                                                                                        value={editingQty[alloc!.id] !== undefined ? editingQty[alloc!.id] : alloc!.quantityAllocated}
+                                                                                        onChange={e => {
+                                                                                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                                                                                            setEditingQty(prev => ({ ...prev, [alloc!.id]: raw }));
+                                                                                        }}
+                                                                                        onFocus={e => {
+                                                                                            setEditingQty(prev => ({ ...prev, [alloc!.id]: String(alloc!.quantityAllocated) }));
+                                                                                            setTimeout(() => e.target.select(), 0);
+                                                                                        }}
+                                                                                        onBlur={() => {
+                                                                                            const raw = editingQty[alloc!.id];
+                                                                                            const val = parseInt(raw) || 1;
+                                                                                            const clamped = Math.min(Math.max(val, 1), available);
+                                                                                            handleUpdateQuantity(alloc!.id, clamped);
+                                                                                            setEditingQty(prev => { const next = { ...prev }; delete next[alloc!.id]; return next; });
+                                                                                        }}
+                                                                                        onKeyDown={e => {
+                                                                                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                                                        }}
+                                                                                        className="w-14 h-8 bg-slate-900 border border-slate-600 rounded-md text-white text-center text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                                                                                    />
+                                                                                    <button type="button" onClick={() => handleUpdateQuantity(alloc!.id, alloc!.quantityAllocated + 1)} disabled={alloc!.quantityAllocated >= available} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded-md disabled:opacity-30 transition-all">
+                                                                                        <Plus className="w-4 h-4" />
+                                                                                    </button>
+                                                                                </div>
+                                                                                <span className="text-[10px] text-slate-500">de {available}</span>
+                                                                            </div>
+                                                                            
+                                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                                {/* LED Calc shortcut */}
+                                                                                {isLED && (
+                                                                                    <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 transition-colors">
+                                                                                        <Activity className="w-3.5 h-3.5" />
+                                                                                        Área
+                                                                                    </button>
+                                                                                )}
+                                                                                {/* Remove */}
+                                                                                <button type="button" onClick={() => handleRemoveEquipment(alloc!.id)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Remover">
+                                                                                    <Trash2 className="w-4 h-4" />
                                                                                 </button>
                                                                             </div>
-                                                                            <span className="text-[10px] text-slate-500">de {available}</span>
-                                                                            {/* LED Calc shortcut */}
-                                                                            {isLED && (
-                                                                                <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="ml-auto text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 transition-colors">
-                                                                                    <Activity className="w-3.5 h-3.5" />
-                                                                                    Calc. Área
-                                                                                </button>
-                                                                            )}
-                                                                            {/* Remove */}
-                                                                            <button type="button" onClick={() => handleRemoveEquipment(alloc!.id)} className="ml-auto p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Remover">
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </button>
                                                                         </>
                                                                     ) : isUnavailable ? (
                                                                         <span className="text-xs text-red-400 flex items-center gap-1">
@@ -684,12 +765,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                                                         </span>
                                                                     ) : (
                                                                         <>
-                                                                            <button type="button" onClick={() => handleAddEquipment(eq)} className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all">
+                                                                            <button type="button" onClick={() => handleAddEquipment(eq)} className="flex-1 sm:flex-none justify-center bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all">
                                                                                 <Plus className="w-3.5 h-3.5" />
                                                                                 Adicionar
                                                                             </button>
                                                                             {isLED && (
-                                                                                <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 transition-colors">
+                                                                                <button type="button" onClick={() => handleOpenLEDCalc(eq)} className="flex-1 sm:flex-none justify-center text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 px-2.5 py-2 rounded-lg border border-blue-500/20 transition-colors">
                                                                                     <Activity className="w-3.5 h-3.5" />
                                                                                     Calc. Área
                                                                                 </button>
@@ -697,6 +778,70 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                                                         </>
                                                                     )}
                                                                 </div>
+
+                                                                {/* Interactive Case Selection */}
+                                                                {isSelected && eq.unitsPerCase && eq.unitsPerCase > 0 && (() => {
+                                                                    const upc = eq.unitsPerCase;
+                                                                    const prefix = eq.casePrefix || 'C';
+                                                                    const totalOwnedCases = Math.ceil((eq.quantityOwned || 0) / upc);
+                                                                    const selectedCases = alloc!.allocatedCases || [];
+                                                                    const occupied = occupiedCasesMap[eq.id] || [];
+                                                                    const availableCount = totalOwnedCases - occupied.length;
+
+                                                                    const toggleCase = (caseNum: number) => {
+                                                                        if (occupied.includes(caseNum)) return; // Can't toggle occupied
+                                                                        const current = alloc!.allocatedCases || [];
+                                                                        let updated: number[];
+                                                                        if (current.includes(caseNum)) {
+                                                                            updated = current.filter(c => c !== caseNum);
+                                                                        } else {
+                                                                            updated = [...current, caseNum].sort((a, b) => a - b);
+                                                                        }
+                                                                        const newQty = updated.length * upc;
+                                                                        setSelectedEquipments(prev =>
+                                                                            prev.map(a => a.id === alloc!.id
+                                                                                ? { ...a, allocatedCases: updated, quantityAllocated: Math.min(newQty, eq.quantityOwned || newQty) }
+                                                                                : a
+                                                                            )
+                                                                        );
+                                                                    };
+
+                                                                    return (
+                                                                        <div className="mt-2 bg-amber-500/5 border border-amber-500/15 rounded-lg p-2.5">
+                                                                            <p className="text-[10px] text-amber-400 font-bold uppercase mb-1.5">
+                                                                                📦 Selecione os cases ({selectedCases.length} selecionado{selectedCases.length !== 1 ? 's' : ''} · {availableCount} disponível{availableCount !== 1 ? 'is' : ''})
+                                                                            </p>
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                {Array.from({ length: totalOwnedCases }, (_, c) => {
+                                                                                    const caseNum = c + 1;
+                                                                                    const start = String(c * upc + 1).padStart(2, '0');
+                                                                                    const end = String(Math.min((c + 1) * upc, eq.quantityOwned || 0)).padStart(2, '0');
+                                                                                    const isChecked = selectedCases.includes(caseNum);
+                                                                                    const isOccupied = occupied.includes(caseNum);
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={c}
+                                                                                            type="button"
+                                                                                            onClick={() => toggleCase(caseNum)}
+                                                                                            disabled={isOccupied}
+                                                                                            title={isOccupied ? `Case ${prefix}-${caseNum} alocado em outro evento` : ''}
+                                                                                            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold transition-all ${
+                                                                                                isOccupied
+                                                                                                    ? 'bg-red-500/15 border border-red-500/30 text-red-400/70 cursor-not-allowed opacity-60'
+                                                                                                    : isChecked
+                                                                                                        ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 ring-1 ring-emerald-400/30 cursor-pointer'
+                                                                                                        : 'bg-slate-800/50 border border-slate-700 text-slate-500 hover:border-amber-500/30 hover:text-amber-400 cursor-pointer'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {isOccupied ? '🔒' : isChecked ? '✅' : '⬜'} {prefix}-{caseNum}
+                                                                                            <span className={isOccupied ? 'text-red-500/50' : isChecked ? 'text-emerald-500/60' : 'text-slate-600'}>({start}-{end})</span>
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         );
                                                     })}

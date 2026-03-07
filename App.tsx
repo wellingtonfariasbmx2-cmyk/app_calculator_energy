@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap, Package } from 'lucide-react';
+import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap, Package, Users } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
@@ -17,6 +17,7 @@ import { EducationView } from './components/EducationView';
 import NotificationCenter from './components/NotificationCenter';
 import { TVDashboardView } from './components/TVDashboardView';
 import { MaintenanceView } from './components/MaintenanceView';
+import { PartnersView } from './components/PartnersView';
 import { EnergyHub } from './components/EnergyHub';
 import { ConfigProvider, useConfig } from './components/ConfigContext';
 import { SettingsView } from './components/SettingsView';
@@ -237,6 +238,8 @@ function MainLayout() {
         return <div className="animate-fade-in"><TVDashboardView /></div>;
       case 'maintenance':
         return <div className="animate-fade-in"><MaintenanceView /></div>;
+      case 'partners':
+        return <div className="animate-fade-in"><PartnersView /></div>;
 
       default:
         return <EquipmentsView />;

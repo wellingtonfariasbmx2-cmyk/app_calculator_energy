@@ -4,6 +4,7 @@ import { Event, Equipment, DistributionProject } from '../types';
 import { EventService } from '../services/EventService';
 import { DataService } from '../services/supabaseClient';
 import { ExportService } from '../services/ExportService';
+import { getLEDLogistics, getLEDDisplayMode, setLEDDisplayMode, LEDDisplayMode } from '../utils/ledPanelCalc';
 import { useToast } from './Toast';
 import { useConfirm } from './ConfirmModal';
 import { EventModal } from './EventModal';
@@ -38,6 +39,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
     const [targetHeight, setTargetHeight] = useState<number | string>('');
     const [calcMode, setCalcMode] = useState<'area' | 'dimensions'>('dimensions');
     const [availabilityMap, setAvailabilityMap] = useState<Record<string, number>>({});
+    const [ledMode, setLedMode] = useState<LEDDisplayMode>(getLEDDisplayMode());
 
     const { success, error: showError } = useToast();
     const { confirm, ConfirmModalComponent } = useConfirm();
@@ -265,36 +267,69 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                 const eqName = eq?.name || 'Equipamento';
 
                 if (eq && eq.category === 'Painel de LED') {
-                    const w = eq.panelWidth || 0.5;
-                    const h = eq.panelHeight || 1.0;
                     const qty = alloc.quantityAllocated;
-
-                    let bestW = 1;
-                    let bestH = qty;
-                    let bestRatioDiff = Infinity;
-                    const targetRatio = 16 / 9;
-
-                    for (let tryW = 1; tryW <= qty; tryW++) {
-                        if (qty % tryW === 0) {
-                            const tryH = qty / tryW;
-                            const currentRatio = (tryW * w) / (tryH * h);
-                            const ratioDiff = Math.abs(currentRatio - targetRatio);
-                            if (ratioDiff < bestRatioDiff) {
-                                bestRatioDiff = ratioDiff;
-                                bestW = tryW;
-                                bestH = tryH;
-                            }
-                        }
-                    }
-
-                    const panelsPerCase = eq.panelsPerCase || 6;
-                    const cases = Math.ceil(qty / panelsPerCase);
+                    const led = getLEDLogistics(
+                        eq.panelWidth || 0.5,
+                        eq.panelHeight || 1.0,
+                        qty,
+                        eq.panelsPerCase || 6
+                    );
 
                     equipList += `• ${qty}x ${eqName}\n`;
-                    equipList += `  ↳ Tamanho: ${(bestW * w).toFixed(1)}m x ${(bestH * h).toFixed(1)}m\n`;
-                    equipList += `  ↳ Cases: ${cases} case(s)\n`;
+                    equipList += `  ↳ Tamanho: ${led.sizeLabel}\n`;
+                    equipList += `  ↳ Cases: ${led.cases} case(s)\n`;
+
+                    // Case numbering for LED panels
+                    const upc = eq.unitsPerCase || 0;
+                    if (upc > 0) {
+                        const prefix = eq.casePrefix || 'C';
+                        const allocCases: number[] = alloc.allocatedCases || [];
+                        let labels = [];
+
+                        if (allocCases.length > 0) {
+                            for (const cn of allocCases) {
+                                const s = String((cn - 1) * upc + 1).padStart(2, '0');
+                                const e = String(Math.min(cn * upc, eq.quantityOwned || cn * upc)).padStart(2, '0');
+                                labels.push(`${prefix}-${cn} (${s}-${e})`);
+                            }
+                        } else {
+                            const totalCases = Math.ceil(qty / upc);
+                            for (let c = 0; c < totalCases; c++) {
+                                const s = String(c * upc + 1).padStart(2, '0');
+                                const e = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                labels.push(`${prefix}-${c + 1} (${s}-${e})`);
+                            }
+                        }
+                        equipList += `  ↳ Numeração: ${labels.join(', ')}\n`;
+                    }
                 } else {
-                    equipList += `• ${alloc.quantityAllocated}x ${eqName}\n`;
+                    const qty = alloc.quantityAllocated;
+                    equipList += `• ${qty}x ${eqName}`;
+
+                    // Case numbering for non-LED equipment
+                    const upc = eq?.unitsPerCase || 0;
+                    if (upc > 0) {
+                        const prefix = eq?.casePrefix || 'C';
+                        const allocCases: number[] = alloc.allocatedCases || [];
+                        let labels = [];
+
+                        if (allocCases.length > 0) {
+                            for (const cn of allocCases) {
+                                const s = String((cn - 1) * upc + 1).padStart(2, '0');
+                                const e = String(Math.min(cn * upc, eq?.quantityOwned || cn * upc)).padStart(2, '0');
+                                labels.push(`${prefix}-${cn} (${s}-${e})`);
+                            }
+                        } else {
+                            const totalCases = Math.ceil(qty / upc);
+                            for (let c = 0; c < totalCases; c++) {
+                                const s = String(c * upc + 1).padStart(2, '0');
+                                const e = String(Math.min((c + 1) * upc, qty)).padStart(2, '0');
+                                labels.push(`${prefix}-${c + 1} (${s}-${e})`);
+                            }
+                        }
+                        equipList += `\n  ↳ Cases: ${labels.join(', ')}`;
+                    }
+                    equipList += `\n`;
                 }
             });
         } else {
@@ -308,8 +343,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
             (event.setupTime ? `*HORÁRIO MONTAGEM:* ${event.setupTime}\n` : '') +
             (event.eventTime ? `*HORÁRIO EVENTO:* ${event.eventTime}\n` : '') +
             (event.technicalResponsible ? `*RESP. TÉCNICO:* ${event.technicalResponsible}\n` : '') +
-            equipList +
-            `\nEquipe, fiquem atentos aos detalhes e horários!`;
+            equipList;
 
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
@@ -368,7 +402,23 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId, onBac
                         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">{event.name}</h1>
                         {getStatusBadge(event.status)}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                        {/* LED Display Mode Toggle */}
+                        {event.equipmentAllocations?.some(a => a.equipment?.category === 'Painel de LED') && (
+                            <button
+                                onClick={() => {
+                                    const next = ledMode === 'dimensions' ? 'area' : 'dimensions';
+                                    setLEDDisplayMode(next);
+                                    setLedMode(next);
+                                }}
+                                className="bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all border border-amber-500/30"
+                                title={ledMode === 'dimensions' ? 'Mudar para m²' : 'Mudar para L x A'}
+                            >
+                                📐
+                                <span className="hidden sm:inline">{ledMode === 'dimensions' ? 'L x A' : 'm²'}</span>
+                                <span className="sm:hidden">{ledMode === 'dimensions' ? 'LxA' : 'm²'}</span>
+                            </button>
+                        )}
                         <button
                             onClick={handleShareWhatsApp}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"

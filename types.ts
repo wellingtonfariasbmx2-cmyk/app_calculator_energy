@@ -33,6 +33,10 @@ export interface Equipment {
   panelHeight?: number; // altura em metros (ex: 1.0)
   panelsPerCase?: number; // quantidade de placas por case
 
+  // Campos para Cases e Numeração
+  unitsPerCase?: number; // quantos aparelhos por case (ex: 10 par leds por case)
+  casePrefix?: string; // prefixo do case (ex: "PL", "MH")
+
   // Campos calculados em runtime para gestão de estoque
   quantityAvailable?: number; // Calculado: owned - allocated
   quantityAllocated?: number; // Em uso em eventos
@@ -139,13 +143,28 @@ export interface Event {
 
 export interface EquipmentAllocation {
   id: string;
-  eventId: string;
+  eventId?: string;
+  partnerId?: string;
   equipmentId: string;
-  equipment?: Equipment; // Carregado via join
+  equipment?: Equipment;
   quantityAllocated: number;
   status: 'allocated' | 'returned';
   allocatedAt: string;
   returnedAt?: string;
+  allocatedCases?: number[]; // Array com os números dos cases alocados (ex: [1, 2, 3])
+}
+
+export interface Partner {
+  id: string;
+  name: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  notes?: string;
+  status: 'active' | 'inactive';
+  equipmentAllocations?: EquipmentAllocation[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type AnyReport = Calculation | DistributionProject | Event;
@@ -170,4 +189,4 @@ export interface MaintenanceRecord {
   updatedAt: string;
 }
 
-export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education' | 'tv-dashboard' | 'maintenance' | 'settings';
+export type ViewState = 'equipments' | 'calculator' | 'distribution' | 'reports' | 'events' | 'availability' | 'power-system' | 'education' | 'tv-dashboard' | 'maintenance' | 'settings' | 'partners';

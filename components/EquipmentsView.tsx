@@ -91,8 +91,7 @@ export const EquipmentsView: React.FC = () => {
     if (item) {
       setEditingItem({
         ...item,
-        // Se watts vier como 0 ou null, garante que seja undefined para a UI
-        watts: item.watts ? item.watts : undefined
+        watts: item.watts
       });
     } else {
       setEditingItem({
@@ -350,6 +349,24 @@ export const EquipmentsView: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {item.unitsPerCase && item.unitsPerCase > 0 && (
+                <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 mt-2 flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">📦</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Cases:</span>
+                    <span className="text-xs text-amber-400 font-bold">{Math.ceil((item.quantityOwned || 0) / item.unitsPerCase)} case(s)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Prefixo:</span>
+                    <span className="text-xs text-white font-bold">{item.casePrefix || 'C'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Unid/Case:</span>
+                    <span className="text-xs text-white font-bold">{item.unitsPerCase}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -473,6 +490,57 @@ export const EquipmentsView: React.FC = () => {
                   </div>
                 )}
 
+                {/* ===== ORGANIZAÇÃO EM CASES ===== */}
+                {(editingItem.quantityOwned || 0) > 1 && (
+                  <div className="md:col-span-2 border-t border-slate-700/50 pt-4 mt-2 animate-fade-in">
+                    <h3 className="text-white text-sm font-bold flex items-center gap-2 mb-3">
+                      📦 Organização em Cases
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Unidades por Case</label>
+                        <input type="number" min="1" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none font-mono"
+                          value={editingItem.unitsPerCase || ''}
+                          onChange={e => handleFieldChange('unitsPerCase', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                          placeholder="Ex: 10"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Prefixo do Case</label>
+                        <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 outline-none"
+                          value={editingItem.casePrefix || ''}
+                          onChange={e => handleFieldChange('casePrefix', e.target.value || undefined)}
+                          placeholder="Ex: PL, MH"
+                          maxLength={5}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preview de cases */}
+                    {editingItem.unitsPerCase && editingItem.unitsPerCase > 0 && (
+                      <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 space-y-1.5 max-h-[120px] overflow-y-auto">
+                        <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">
+                          Preview: {Math.ceil((editingItem.quantityOwned || 0) / editingItem.unitsPerCase)} case(s)
+                        </p>
+                        {Array.from({ length: Math.ceil((editingItem.quantityOwned || 0) / (editingItem.unitsPerCase || 1)) }, (_, i) => {
+                          const prefix = editingItem.casePrefix || 'C';
+                          const start = i * (editingItem.unitsPerCase || 1) + 1;
+                          const end = Math.min(start + (editingItem.unitsPerCase || 1) - 1, editingItem.quantityOwned || 0);
+                          const startStr = String(start).padStart(2, '0');
+                          const endStr = String(end).padStart(2, '0');
+                          return (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <span className="text-amber-400 font-bold">📦 Case {prefix}-{i + 1}</span>
+                              <span className="text-slate-400">Aparelhos {startStr}-{endStr}</span>
+                              <span className="text-slate-600 text-[10px]">({end - start + 1} un.)</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="md:col-span-2 border-t border-slate-700/50 pt-4 mt-2">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
@@ -483,7 +551,7 @@ export const EquipmentsView: React.FC = () => {
                       <input
                         type="checkbox"
                         className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800 cursor-pointer"
-                        checked={editingItem.watts !== undefined}
+                        checked={editingItem.watts !== undefined && editingItem.watts !== null && editingItem.watts > 0}
                         onChange={e => {
                           if (e.target.checked) {
                             setEditingItem(prev => ({
@@ -496,7 +564,7 @@ export const EquipmentsView: React.FC = () => {
                           } else {
                             setEditingItem(prev => ({
                               ...prev,
-                              watts: undefined,
+                              watts: 0,
                               voltage: 0,
                               powerFactor: 1,
                               amperes: 0
@@ -508,7 +576,7 @@ export const EquipmentsView: React.FC = () => {
                   </div>
                 </div>
 
-                {editingItem.watts !== undefined && (
+                {editingItem.watts !== undefined && editingItem.watts !== null && editingItem.watts > 0 && (
                   <div className="grid grid-cols-2 gap-4 md:col-span-2 animate-fade-in duration-300">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Potência (W)</label>

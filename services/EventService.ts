@@ -124,6 +124,7 @@ export class EventService {
                 equipment_id: alloc.equipmentId,
                 quantity_allocated: alloc.quantityAllocated,
                 status: 'allocated',
+                allocated_cases: alloc.allocatedCases ? JSON.stringify(alloc.allocatedCases) : null,
             }));
 
             const { error: allocError } = await supabase
@@ -156,6 +157,35 @@ export class EventService {
         if (error) {
             console.error('Error updating event:', error);
             throw error;
+        }
+
+        // Sync allocations if provided
+        if (event.equipmentAllocations !== undefined) {
+            // Delete existing allocations
+            await supabase
+                .from('equipment_allocations')
+                .delete()
+                .eq('event_id', id);
+
+            // Insert updated allocations
+            if (event.equipmentAllocations.length > 0) {
+                const allocations = event.equipmentAllocations.map(alloc => ({
+                    event_id: id,
+                    equipment_id: alloc.equipmentId,
+                    quantity_allocated: alloc.quantityAllocated,
+                    status: alloc.status || 'allocated',
+                    allocated_cases: alloc.allocatedCases ? JSON.stringify(alloc.allocatedCases) : null,
+                }));
+
+                const { error: allocError } = await supabase
+                    .from('equipment_allocations')
+                    .insert(allocations);
+
+                if (allocError) {
+                    console.error('Error updating allocations:', allocError);
+                    throw allocError;
+                }
+            }
         }
 
         return (await this.getEventById(id))!;
@@ -262,28 +292,35 @@ export class EventService {
             return -1;
         }
 
-        // Buscar alocações ativas
-        const { data: allocations, error: allocError } = await supabase
+        // Buscar alocações ativas para EVENTOS
+        const { data: eventAllocations, error: allocError } = await supabase
             .from('equipment_allocations')
             .select(`
                 quantity_allocated,
                 event_id,
-                event:events!inner (status, start_date, end_date)
+                partner_id,
+                event:events!left (status, start_date, end_date)
             `)
             .eq('equipment_id', equipmentId)
-            .eq('status', 'allocated')
-            .in('event.status', ['planned', 'in_progress']);
+            .eq('status', 'allocated');
 
         if (allocError) {
             console.error('Error checking availability:', allocError);
             return equipment.quantity_owned;
         }
 
-        // Calcular total alocado considerando CONFLITO DE DATAS
-        const totalAllocated = (allocations || [])
+        // Calcular total alocado considerando CONFLITO DE DATAS (eventos) + parceiros
+        const totalAllocated = (eventAllocations || [])
             .filter(alloc => alloc.event_id !== excludeEventId)
             .filter(alloc => {
+                // Alocações para parceiros SEM evento sempre contam
+                if (alloc.partner_id && !alloc.event_id) return true;
+
+                // Alocações para eventos: verificar conflito de datas
                 const allocEvent = alloc.event as any;
+                if (!allocEvent || !allocEvent.status) return false;
+                if (!['planned', 'in_progress'].includes(allocEvent.status)) return false;
+
                 const allocStart = new Date(allocEvent.start_date);
                 allocStart.setHours(0, 0, 0, 0);
                 const allocEnd = new Date(allocEvent.end_date || allocEvent.start_date);
@@ -295,6 +332,72 @@ export class EventService {
             .reduce((sum, alloc) => sum + alloc.quantity_allocated, 0);
 
         return equipment.quantity_owned - totalAllocated;
+    }
+
+    /**
+     * Buscar quais cases estão ocupados para um equipamento em um período de datas
+     * Retorna array com os números dos cases ocupados (ex: [1, 2, 3, 4, 5, 6])
+     */
+    static async getOccupiedCases(
+        equipmentId: string,
+        startDate: string,
+        endDate: string,
+        excludeEventId?: string
+    ): Promise<number[]> {
+        if (!supabase) return [];
+
+        const targetStart = new Date(startDate);
+        targetStart.setHours(0, 0, 0, 0);
+        const targetEnd = new Date(endDate || startDate);
+        targetEnd.setHours(23, 59, 59, 999);
+
+        const { data: allocations, error } = await supabase
+            .from('equipment_allocations')
+            .select(`
+                allocated_cases,
+                event_id,
+                partner_id,
+                event:events!left (status, start_date, end_date)
+            `)
+            .eq('equipment_id', equipmentId)
+            .eq('status', 'allocated');
+
+        if (error || !allocations) return [];
+
+        const occupiedCases: number[] = [];
+
+        for (const alloc of allocations) {
+            // Skip current event being edited
+            if (excludeEventId && alloc.event_id === excludeEventId) continue;
+
+            // Partner allocations always count
+            const isPartner = alloc.partner_id && !alloc.event_id;
+
+            if (!isPartner) {
+                // Check date conflict for events
+                const allocEvent = alloc.event as any;
+                if (!allocEvent || !allocEvent.status) continue;
+                if (!['planned', 'in_progress'].includes(allocEvent.status)) continue;
+
+                const allocStart = new Date(allocEvent.start_date);
+                allocStart.setHours(0, 0, 0, 0);
+                const allocEnd = new Date(allocEvent.end_date || allocEvent.start_date);
+                allocEnd.setHours(23, 59, 59, 999);
+
+                // No conflict = skip
+                if (!(allocStart <= targetEnd && allocEnd >= targetStart)) continue;
+            }
+
+            // Collect occupied cases
+            const cases = alloc.allocated_cases
+                ? (typeof alloc.allocated_cases === 'string'
+                    ? JSON.parse(alloc.allocated_cases)
+                    : alloc.allocated_cases)
+                : [];
+            occupiedCases.push(...cases);
+        }
+
+        return [...new Set(occupiedCases)].sort((a, b) => a - b);
     }
 
     /**
@@ -318,10 +421,11 @@ export class EventService {
             .select(`
                 equipment_id,
                 quantity_allocated,
-                event:events!inner (status, start_date, end_date)
+                event_id,
+                partner_id,
+                event:events!left (status, start_date, end_date)
             `)
-            .eq('status', 'allocated')
-            .in('event.status', ['planned', 'in_progress']);
+            .eq('status', 'allocated');
 
         if (allocError) {
             console.error('Error fetching allocations:', allocError);
@@ -339,7 +443,14 @@ export class EventService {
             const totalAllocated = (allocations || [])
                 .filter(alloc => alloc.equipment_id === eq.id)
                 .filter(alloc => {
+                    // Alocações para parceiros sempre contam
+                    if (alloc.partner_id && !alloc.event_id) return true;
+
+                    // Alocações para eventos: verificar status e datas
                     const allocEvent = alloc.event as any;
+                    if (!allocEvent || !allocEvent.status) return false;
+                    if (!['planned', 'in_progress'].includes(allocEvent.status)) return false;
+
                     const allocStart = new Date(allocEvent.start_date);
                     allocStart.setHours(0, 0, 0, 0);
                     const allocEnd = new Date(allocEvent.end_date || allocEvent.start_date);
@@ -473,12 +584,15 @@ export class EventService {
                     status: alloc.equipment.status || 'active',
                     panelWidth: alloc.equipment.panel_width ? Number(alloc.equipment.panel_width) : undefined,
                     panelHeight: alloc.equipment.panel_height ? Number(alloc.equipment.panel_height) : undefined,
-                    panelsPerCase: alloc.equipment.panels_per_case ? Number(alloc.equipment.panels_per_case) : undefined
+                    panelsPerCase: alloc.equipment.panels_per_case ? Number(alloc.equipment.panels_per_case) : undefined,
+                    unitsPerCase: alloc.equipment.units_per_case ? Number(alloc.equipment.units_per_case) : undefined,
+                    casePrefix: alloc.equipment.case_prefix || undefined
                 } : undefined,
                 quantityAllocated: alloc.quantity_allocated,
                 status: alloc.status,
                 allocatedAt: alloc.allocated_at,
-                returnedAt: alloc.returned_at
+                returnedAt: alloc.returned_at,
+                allocatedCases: alloc.allocated_cases ? (typeof alloc.allocated_cases === 'string' ? JSON.parse(alloc.allocated_cases) : alloc.allocated_cases) : undefined
             })) || [],
             createdAt: data.created_at,
             updatedAt: data.updated_at
