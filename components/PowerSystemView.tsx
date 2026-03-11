@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Power, Activity, FolderOpen, AlertCircle, Cable, ChevronDown, RotateCcw, RefreshCw, Maximize2 } from 'lucide-react';
+import { Zap, Power, Activity, FolderOpen, AlertCircle, Cable, ChevronDown, RotateCcw, RefreshCw, Maximize2, FileText } from 'lucide-react';
 import { GeneratorConfig, MainpowerConfig, DistributionProject, Port } from '../types';
 import { GeneratorConfigModal } from './GeneratorConfigModal';
 import { MainpowerConfigModal } from './MainpowerConfigModal';
@@ -11,6 +11,7 @@ import { balancePhases, updatePhaseLoads } from '../services/phaseBalancing';
 import { PresentationMode } from './PresentationMode';
 import { LoadingScreen } from './LoadingScreen';
 import { ErrorScreen } from './ErrorScreen';
+import { ExportService } from '../services/ExportService';
 
 export const PowerSystemView: React.FC = () => {
     const [presentationMode, setPresentationMode] = useState(false);
@@ -25,10 +26,11 @@ export const PowerSystemView: React.FC = () => {
         enabled: false,
         systemType: 'three-phase',
         totalPorts: 12,
+        mainBreakerAmps: 63,
         phases: [
-            { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [] },
-            { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
-            { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
+            { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+            { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+            { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 }
         ],
         autoBalance: true
     });
@@ -106,10 +108,11 @@ export const PowerSystemView: React.FC = () => {
                 enabled: false,
                 systemType: 'three-phase',
                 totalPorts: 12,
+                mainBreakerAmps: 63,
                 phases: [
-                    { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [] },
-                    { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
-                    { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
+                    { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+                    { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+                    { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 }
                 ],
                 autoBalance: false
             });
@@ -284,10 +287,11 @@ export const PowerSystemView: React.FC = () => {
                     enabled: false,
                     systemType: 'three-phase',
                     totalPorts: 12,
+                    mainBreakerAmps: 63,
                     phases: [
-                        { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [] },
-                        { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [] },
-                        { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [] }
+                        { phaseId: 'A', color: '#ef4444', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+                        { phaseId: 'B', color: '#3b82f6', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 },
+                        { phaseId: 'C', color: '#eab308', maxAmps: 63, currentLoad: 0, ports: [], portsCount: 4, breakerAmps: 63 }
                     ],
                     autoBalance: false
                 });
@@ -338,6 +342,87 @@ export const PowerSystemView: React.FC = () => {
             case 'two-phase': return 'Bifásico';
             case 'three-phase': return 'Trifásico';
             default: return 'Trifásico';
+        }
+    };
+
+    // --- NOVA LÓGICA: Monitoramento do Transformador de 120V (ACT-05) ---
+    // Limite documentado pela Pentacústica: 4500W
+    const TRANSFORMER_120V_MAX_WATTS = 4500;
+    
+    // Calcular a soma da potência (W) de todos os equipamentos que estão operando em 110/120V 
+    // ligados ao Mainpower 
+    let total120VWatts = 0;
+    
+    if (mainpowerConfig.enabled) {
+        allPorts.forEach(port => {
+            port.items.forEach(item => {
+                const strToSearch = `${port.name} ${item.equipment.name} ${port.description || ''}`.toLowerCase();
+                if (strToSearch.includes('120v') || strToSearch.includes('110v') || strToSearch.includes('console') || strToSearch.includes('mesa') || strToSearch.includes('house') || strToSearch.includes('mix')) {
+                     total120VWatts += (item.equipment.watts * item.quantity);
+                }
+            });
+        });
+    }
+
+    // --- NOVA LÓGICA: Fases do Gerador (R, S, T) ---
+    const getGeneratorPhasesData = () => {
+        if (!generatorConfig.enabled) return [];
+        
+        let genMaxAmpsPerPhase = 0;
+        let numPhases = generatorConfig.isThreePhase ? 3 : 1;
+
+        if (generatorConfig.isThreePhase) {
+            // Formula Trifásica: kVA * 1000 / (Volts * 1.732)
+            genMaxAmpsPerPhase = (generatorConfig.powerKVA * 1000) / (generatorConfig.voltage * 1.732);
+        } else {
+            // Formula Monofásica: kVA * 1000 / Volts
+            genMaxAmpsPerPhase = (generatorConfig.powerKVA * 1000) / generatorConfig.voltage;
+        }
+
+        const phases = [];
+        const phaseNames = generatorConfig.isThreePhase ? ['R', 'S', 'T'] : ['L1'];
+        
+        for (let i = 0; i < numPhases; i++) {
+            // Mapeia Fase do Mainpower para a Fase do Gerador (A->R, B->S, C->T)
+            const mainpowerPhase = mainpowerConfig.enabled ? mainpowerConfig.phases[i] : null;
+            const currentLoad = mainpowerPhase ? mainpowerPhase.currentLoad : 0;
+            
+            phases.push({
+                name: phaseNames[i],
+                maxAmps: genMaxAmpsPerPhase,
+                currentLoad: currentLoad,
+                percent: Math.min((currentLoad / genMaxAmpsPerPhase) * 100, 100)
+            });
+        }
+        return phases;
+    };
+
+    const generatorPhases = getGeneratorPhasesData();
+
+    const handleExportPDF = async () => {
+        if (!selectedProject || !mainpowerConfig.enabled) {
+            info('Configure o Mainpower antes de exportar o PDF.');
+            return;
+        }
+
+        try {
+            info('Gerando PDF...', 3000);
+            const projectToExport = {
+                ...selectedProject,
+                generatorConfig,
+                mainpowerConfig
+            };
+            
+            await ExportService.exportPowerSystemPDF(
+                projectToExport,
+                generatorPhases,
+                total120VWatts,
+                TRANSFORMER_120V_MAX_WATTS
+            );
+            success('PDF gerado com sucesso!');
+        } catch (err) {
+            console.error('Erro ao exportar PDF:', err);
+            error('Erro ao gerar PDF. Verifique os dados e tente novamente.');
         }
     };
 
@@ -395,10 +480,21 @@ export const PowerSystemView: React.FC = () => {
                 </div>
 
                 {selectedProject && (
-                    <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center justify-end gap-3 w-full md:w-auto mt-4 md:mt-0">
+                        {mainpowerConfig.enabled && (
+                            <button
+                                onClick={handleExportPDF}
+                                className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white border border-indigo-400/50 rounded-lg font-bold flex items-center justify-center gap-2 transition-all shadow-lg text-sm"
+                                title="Exportar PDF do Sistema de Energia"
+                            >
+                                <FileText className="w-4 h-4" />
+                                Exportar PDF
+                            </button>
+                        )}
                         <button
                             onClick={handleResetConfiguration}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 rounded-lg font-bold flex items-center justify-center gap-2 transition-all text-sm"
+                            className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 rounded-lg font-bold flex items-center justify-center gap-2 transition-all text-sm"
+                            title="Resetar Configurações"
                         >
                             <RotateCcw className="w-4 h-4" />
                             Resetar
@@ -435,6 +531,22 @@ export const PowerSystemView: React.FC = () => {
                             >
                                 Ajustar Mainpower
                             </button>
+                        </div>
+                    )}
+
+                    {/* Alerta Transformador ACT-05 (120V) */}
+                    {mainpowerConfig.enabled && total120VWatts > TRANSFORMER_120V_MAX_WATTS && (
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 animate-bounce-slow">
+                            <div className="p-2 bg-orange-500/20 rounded-lg shrink-0">
+                                <AlertCircle className="w-6 h-6 text-orange-400" />
+                            </div>
+                            <div className="flex-1 text-center sm:text-left">
+                                <h4 className="font-bold text-orange-400 text-lg">Atenção: Sobrecarga no Transformador 120V (ACT-05)</h4>
+                                <p className="text-sm text-orange-200/80">
+                                    Identificamos <strong className="text-white">{total120VWatts}W</strong> sendo exigidos de equipamentos 120V/Mesas. <br/>
+                                    O transformador ACT-05 (interno do RMP-63) suporta <strong>no máximo {TRANSFORMER_120V_MAX_WATTS}W</strong>. Recomendamos o uso de um RT-05 externo para backup.
+                                </p>
+                            </div>
                         </div>
                     )}
 
@@ -504,7 +616,7 @@ export const PowerSystemView: React.FC = () => {
                                             : 'Não Configurado'}
                                     </p>
                                     <div className="mt-2 text-xs text-slate-500">
-                                        {mainpowerConfig.totalPorts} canais • {mainpowerConfig.phases.length} fases
+                                        {mainpowerConfig.mainBreakerAmps || '?'}A geral • {mainpowerConfig.totalPorts} portas • {mainpowerConfig.phases.length} fases
                                     </div>
                                 </div>
                                 {/* Linha de conexão animada */}
@@ -565,6 +677,56 @@ export const PowerSystemView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* BLOCO DE FASES DO GERADOR */}
+                        {generatorConfig.enabled && (
+                            <div className="mt-8 border-t border-slate-800 pt-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Power className="w-4 h-4 text-yellow-500" />
+                                        Carga nas Fases do Gerador
+                                    </h4>
+                                    <div className="text-xs text-slate-500">
+                                        Max: {generatorPhases.length > 0 ? generatorPhases[0].maxAmps.toFixed(0) : 0}A por Fase
+                                    </div>
+                                </div>
+                                
+                                <div className={`grid gap-4 ${generatorPhases.length === 1 ? 'grid-cols-1 max-w-sm mx-auto' : 'grid-cols-1 sm:grid-cols-3'}`}>
+                                    {generatorPhases.map(phase => {
+                                        let statusColor = "bg-emerald-500";
+                                        let textColor = "text-emerald-400";
+                                        if (phase.percent > 75) { statusColor = "bg-yellow-500"; textColor = "text-yellow-400"; }
+                                        if (phase.percent > 90) { statusColor = "bg-red-500"; textColor = "text-red-400"; }
+
+                                        return (
+                                            <div key={phase.name} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4">
+                                                <div className="flex justify-between items-end mb-2">
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-slate-500 mb-1">FASE</div>
+                                                        <div className="text-2xl font-black text-white leading-none">{phase.name}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className={`text-lg font-bold ${textColor} leading-none`}>
+                                                            {phase.currentLoad.toFixed(1)}A
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-500 mt-1">
+                                                            {phase.percent.toFixed(1)}% de {phase.maxAmps.toFixed(0)}A
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {/* Progress Bar */}
+                                                <div className="w-full bg-slate-900 rounded-full h-1.5 mt-3 overflow-hidden">
+                                                    <div 
+                                                        className={`h-full ${statusColor} transition-all duration-500`}
+                                                        style={{ width: `${phase.percent}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* FASES - GRID PRINCIPAL */}
@@ -573,7 +735,7 @@ export const PowerSystemView: React.FC = () => {
                             <div className="flex items-center justify-between mb-4 px-2">
                                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Cable className="w-5 h-5 text-indigo-400" />
-                                    Distribuição por Fase
+                                    Distribuição por Fase do Mainpower
                                 </h3>
                                 <div className="text-xs text-slate-500">
                                     Visualização de Rack

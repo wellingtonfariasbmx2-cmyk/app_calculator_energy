@@ -68,6 +68,7 @@ export const PowerConfigPanel: React.FC<PowerConfigPanelProps> = ({
                 onSave={onMainpowerChange}
                 initialConfig={mainpowerConfig}
                 generatorConfig={generatorConfig}
+                projectPortsCount={allPorts.length}
             />
 
             {/* Header */}
@@ -115,7 +116,10 @@ export const PowerConfigPanel: React.FC<PowerConfigPanelProps> = ({
                         <Zap className="w-5 h-5 text-blue-400" />
                         <div>
                             <h4 className="font-semibold text-white">Mainpower {getSystemTypeLabel()}</h4>
-                            <p className="text-xs text-slate-400">{mainpowerConfig.totalPorts} portas • {mainpowerConfig.phases.length} fase{mainpowerConfig.phases.length > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-slate-400">
+                                {mainpowerConfig.mainBreakerAmps || '?'}A geral • {mainpowerConfig.totalPorts} portas • {mainpowerConfig.phases.length} fase{mainpowerConfig.phases.length > 1 ? 's' : ''}
+                            </p>
+
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">

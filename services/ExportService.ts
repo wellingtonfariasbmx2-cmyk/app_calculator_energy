@@ -674,5 +674,297 @@ export const ExportService = {
         }
 
         doc.save(`${title.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+    },
+
+    /**
+     * Gera um PDF com o descritivo do Sistema de Energia (Gerador, Mainpower e Fases)
+     */
+    exportPowerSystemPDF: async (project: any, generatorPhases: any[], total120VWatts: number, TRANSFORMER_120V_MAX_WATTS: number, companyParams?: { name?: string }) => {
+        const { default: jsPDF } = await import('jspdf');
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        let y = 15;
+
+        const companyName = companyParams?.name || 'StageFlow PRO';
+
+        // ===== HEADER =====
+        doc.setFillColor(88, 28, 135); // purple-900
+        doc.rect(0, 0, pageWidth, 35, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('SISTEMA ELÉTRICO E DISTRIBUIÇÃO', margin, 18);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 28);
+        doc.text(companyName, pageWidth - margin, 28, { align: 'right' });
+
+        y = 45;
+
+        // ===== PROJECT NAME =====
+        doc.setTextColor(30, 30, 30);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Projeto: ${project.name || 'Sem nome'}`, margin, y);
+        y += 6;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Tensão Padrão do Sistema: ${project.voltageSystem}V`, margin, y);
+        y += 10;
+
+        // Linha divisória
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        // ===== GERADOR =====
+        if (project.generatorConfig?.enabled) {
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(88, 28, 135);
+            doc.text('1. GERADOR DE ENERGIA', margin, y);
+            y += 8;
+
+            doc.setFontSize(10);
+            doc.setTextColor(50, 50, 50);
+            doc.setFont('helvetica', 'normal');
+            
+            const gen = project.generatorConfig;
+            doc.text(`Potência Requerida do Gerador: `, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${gen.powerKVA} kVA`, margin + 55, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Tensão de Trabalho: `, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${gen.voltage}V`, margin + 35, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Tipo de Fechamento: `, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(gen.isThreePhase ? 'Trifásico (Estrela/Triângulo)' : 'Monofásico/Bifásico', margin + 35, y);
+            y += 8;
+
+            // Fases do Gerador
+            if (generatorPhases && generatorPhases.length > 0) {
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(200, 130, 0); // Laranja avermelhado
+                doc.text('Distribuição Real nas Fases do Gerador:', margin + 5, y);
+                y += 6;
+
+                // Mini-tabela de fases do gerador
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin + 5, y, 120, 8, 'F');
+                doc.setFontSize(9);
+                doc.setTextColor(80, 80, 80);
+                doc.text('Fase', margin + 10, y + 5);
+                doc.text('Consumo (A)', margin + 35, y + 5);
+                doc.text('Capacidade Máx (A)', margin + 70, y + 5);
+                doc.text('Carga (%)', margin + 110, y + 5);
+                y += 10;
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(40, 40, 40);
+                generatorPhases.forEach((phase) => {
+                    doc.text(`${phase.name}`, margin + 10, y + 1);
+                    doc.text(`${phase.currentLoad.toFixed(1)}A`, margin + 35, y + 1);
+                    doc.text(`${phase.maxAmps.toFixed(1)}A`, margin + 70, y + 1);
+                    
+                    let percentColor = [60, 60, 60]; // Normal
+                    if (phase.percent > 75) percentColor = [200, 130, 0]; // Warning
+                    if (phase.percent > 90) percentColor = [200, 0, 0]; // Danger
+                    
+                    doc.setTextColor(percentColor[0], percentColor[1], percentColor[2]);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`${phase.percent.toFixed(1)}%`, margin + 110, y + 1);
+                    
+                    doc.setTextColor(40, 40, 40);
+                    doc.setFont('helvetica', 'normal');
+                    
+                    doc.setDrawColor(230, 230, 230);
+                    doc.line(margin + 5, y + 3, margin + 125, y + 3);
+                    y += 6;
+                });
+            }
+
+            y += 4;
+        }
+
+        // ===== MAINPOWER =====
+        if (project.mainpowerConfig?.enabled) {
+            
+            if (y > 240) { doc.addPage(); y = 20; }
+            
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(88, 28, 135);
+            doc.text('2. MAINPOWER (DISTRIBUIÇÃO)', margin, y);
+            y += 8;
+
+            doc.setFontSize(10);
+            doc.setTextColor(50, 50, 50);
+            const mp = project.mainpowerConfig;
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Disjuntor Geral Tripolar: `, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${mp.mainBreakerAmps}A`, margin + 42, y);
+            y += 6;
+
+            const systemType = mp.systemType === 'single' ? 'Monofásico' : mp.systemType === 'two-phase' ? 'Bifásico' : 'Trifásico';
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Tipo de Sistema Puxado:`, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(systemType, margin + 42, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total de Portas de Saída:`, margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${mp.totalPorts}`, margin + 42, y);
+            y += 6;
+
+            y += 2;
+
+            // Warning Transformador 120V
+            if (total120VWatts > TRANSFORMER_120V_MAX_WATTS) {
+                if (y > 270) { doc.addPage(); y = 20; }
+                y += 2;
+                doc.setFillColor(255, 240, 230); // Fundo Laranja Claro
+                doc.setDrawColor(255, 120, 0); // Borda Laranja
+                doc.rect(margin, y, Math.min(180, pageWidth - margin*2), 16, 'FD');
+                
+                doc.setTextColor(200, 90, 0);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('ATENÇÃO: SOBRECARGA NO TRANSFORMADOR DE 120V (ACT-05)', margin + 4, y + 6);
+                
+                doc.setFont('helvetica', 'normal');
+                const warningText = doc.splitTextToSize(
+                    `Seu painel possui equipamentos em área 120V puxando um total estimado de ${total120VWatts}W.\nO transformador suporta no máximo ${TRANSFORMER_120V_MAX_WATTS}W. Recomenda-se uso de transformador (RT-05) externo extra.`, 
+                    170
+                );
+                doc.text(warningText, margin + 4, y + 11);
+                y += 18;
+            } else {
+                y += 2;
+            }
+
+            // ===== DISTRIBUIÇÃO POR FASE (CIRCUITOS) =====
+            if (mp.phases && mp.phases.length > 0) {
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(88, 28, 135);
+                doc.text('3. MAPA DE CONEXÃO POR FASE (DISTRIBUIÇÃO FÍSICA)', margin, y);
+                y += 8;
+
+                mp.phases.forEach((phase: any) => {
+                    if (y > 250) { doc.addPage(); y = 20; }
+
+                    doc.setFillColor(240, 240, 250); // Fundo azulzinho claro
+                    doc.setDrawColor(200, 200, 230);
+                    doc.rect(margin, y, pageWidth - margin * 2, 8, 'FD');
+                    
+                    doc.setTextColor(40, 40, 100);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`FASE ${phase.phaseId}`, margin + 4, y + 5);
+                    
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.text(`|  Carga Atual: ${phase.currentLoad.toFixed(1)}A  /  Disjuntor de Fase: ${phase.breakerAmps}A`, margin + 25, y + 5);
+                    
+                    y += 12; // Aumentado o espaçamento de y += 10 para y += 12 
+
+                    if (phase.ports && phase.ports.length > 0) {
+                        // Tabela das portas ligadas
+                        doc.setTextColor(80, 80, 80);
+                        doc.setFontSize(8);
+                        doc.setFont('helvetica', 'bold');
+                        const cw = [25, 60, 25, 25, 30]; // Column Widths
+                        doc.text('CIRCUITO', margin + 2, y);
+                        doc.text('EQUIPAMENTOS', margin + 2 + cw[0], y);
+                        doc.text('DISJUNTOR', margin + 2 + cw[0] + cw[1], y);
+                        doc.text('CORRENTE (A)', margin + 2 + cw[0] + cw[1] + cw[2], y);
+                        doc.text('CABO INDICADO', margin + 2 + cw[0] + cw[1] + cw[2] + cw[3], y);
+                        y += 4;
+                        doc.setDrawColor(200, 200, 200);
+                        doc.line(margin, y, pageWidth - margin, y);
+                        y += 4;
+
+                        doc.setTextColor(50, 50, 50);
+                        doc.setFont('helvetica', 'normal');
+                        
+                        phase.ports.forEach((portId: string) => {
+                            const port = project.ports.find((p: any) => p.id === portId);
+                            if (port) {
+                                if (y > 270) { doc.addPage(); y = 20; }
+                                
+                                let portAmps = 0;
+                                let equipLines: string[] = [];
+                                
+                                port.items.forEach((item: any) => {
+                                    const watts = item.quantity * item.equipment.watts;
+                                    portAmps += watts / (project.voltageSystem * (item.equipment.powerFactor || 1));
+                                    equipLines.push(`${item.quantity}x ${item.equipment.name}`);
+                                });
+
+                                const cableSpecs = getCableSpecs(portAmps);
+
+                                // Se não tem itens, colocar texto vazio
+                                if (equipLines.length === 0) equipLines = ['(Nenhum equipamento)'];
+
+                                // Tratar multiplas linhas de equipamentos para caber na tabela
+                                const equipTextArr = doc.splitTextToSize(equipLines.join(', '), cw[1] - 5);
+                                const rowHeight = equipTextArr.length * 4.5;
+                                
+                                // Print row data
+                                doc.setFont('helvetica', 'bold');
+                                doc.text(port.name || port.id.substring(0,6), margin + 2, y + 1);
+                                
+                                doc.setFont('helvetica', 'normal');
+                                doc.text(equipTextArr, margin + 2 + cw[0], y + 1);
+                                doc.text(`${port.breakerAmps}A`, margin + 2 + cw[0] + cw[1], y + 1);
+                                doc.text(`${portAmps.toFixed(2)}A`, margin + 2 + cw[0] + cw[1] + cw[2], y + 1);
+                                doc.text(`${cableSpecs.gauge}mm² (${cableSpecs.connectorType})`, margin + 2 + cw[0] + cw[1] + cw[2] + cw[3], y + 1);
+                                
+                                y += rowHeight + 2;
+                                doc.setDrawColor(240, 240, 240);
+                                doc.line(margin, y, pageWidth - margin, y);
+                                y += 3;
+                            }
+                        });
+                    } else {
+                        doc.setFont('helvetica', 'italic');
+                        doc.setTextColor(150, 150, 150);
+                        doc.setFontSize(9);
+                        doc.text('Nenhum circuito inserido nesta fase.', margin + 4, y);
+                        y += 6;
+                    }
+                    y += 4;
+                });
+            }
+        }
+
+        // ===== FOOTER =====
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, 285, pageWidth - margin, 285);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`${companyName} • Sistema Elétrico`, margin, 291);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, 291, { align: 'right' });
+        }
+
+        doc.save(`Projeto_Eletrica_${(project.name || 'sistema').replace(/\s+/g, '_')}.pdf`);
     }
 };

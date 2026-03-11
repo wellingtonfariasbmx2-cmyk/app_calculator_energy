@@ -75,13 +75,17 @@ export interface PhaseConfig {
   color: string; // Cor para visualização
   maxAmps: number; // Limite de corrente por fase
   currentLoad: number; // Carga atual em amperes
-  ports: string[]; // IDs das portas nesta fase (4 portas por fase)
+  ports: string[]; // IDs das portas nesta fase
+  portsCount: number; // Quantas portas/canais esta fase tem
+  breakerAmps: number; // Disjuntor desta fase em Amperes
 }
 
 export interface MainpowerConfig {
   enabled: boolean;
   systemType: 'single' | 'two-phase' | 'three-phase'; // Tipo de sistema
-  totalPorts: number; // 12 portas (4 por fase para trifásico)
+  totalPorts: number; // Total de portas (ex: 12 = 4 por fase em trifásico)
+  mainBreakerAmps: number; // Disjuntor geral do mainpower (ex: 63A)
+
   phases: PhaseConfig[];
   autoBalance: boolean; // Balanceamento automático ativado
 }
