@@ -620,7 +620,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                                 )}
 
                                 {/* Equipment Cards - Grouped by Category */}
-                                <div className="space-y-5 max-h-[50vh] overflow-y-auto pr-1">
+                                <div className="space-y-5 pr-1 pb-20">
                                     {(() => {
                                         const categoryOrder = ['Painel de LED', 'Moving Head', 'Par Led', 'Blinder', 'Strobo', 'Console', 'Outros'];
                                         const categoryIcons: Record<string, string> = {

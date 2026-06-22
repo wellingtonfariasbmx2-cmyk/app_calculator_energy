@@ -2,6 +2,10 @@
    StageFlow Pro - Custom Styles
    ============================================ */
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* DARK Theme Variables */
   --bg-main: #080F1D;
@@ -409,7 +413,7 @@
 .truncate-3-lines {
   display: -webkit-box;
   -webkit-line-clamp: 3;
-  line-clamp: 2;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

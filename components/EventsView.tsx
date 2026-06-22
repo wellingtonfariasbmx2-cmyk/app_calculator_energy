@@ -391,9 +391,9 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                 </div>
 
                 {/* ==================== KPI DASHBOARD ==================== */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                     {/* Total de Eventos */}
-                    <div className="bg-surface border border-slate-700/50 rounded-xl p-3 hover:border-purple-500/30 transition-all">
+                    <div className="bg-surface border border-slate-700/50 rounded-2xl p-4 hover:border-purple-500/30 transition-all">
                         <div className="flex items-center gap-2 mb-1.5">
                             <div className="p-1.5 bg-purple-500/20 rounded-lg">
                                 <Calendar className="w-3.5 h-3.5 text-purple-400" />
@@ -407,7 +407,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                     </div>
 
                     {/* Próximo Evento */}
-                    <div className="bg-surface border border-slate-700/50 rounded-xl p-3 hover:border-blue-500/30 transition-all">
+                    <div className="bg-surface border border-slate-700/50 rounded-2xl p-4 hover:border-blue-500/30 transition-all">
                         <div className="flex items-center gap-2 mb-1.5">
                             <div className="p-1.5 bg-blue-500/20 rounded-lg">
                                 <Timer className="w-3.5 h-3.5 text-blue-400" />
@@ -428,7 +428,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                     </div>
 
                     {/* Equipamentos Alocados */}
-                    <div className="bg-surface border border-slate-700/50 rounded-xl p-3 hover:border-emerald-500/30 transition-all">
+                    <div className="bg-surface border border-slate-700/50 rounded-2xl p-4 hover:border-emerald-500/30 transition-all">
                         <div className="flex items-center gap-2 mb-1.5">
                             <div className="p-1.5 bg-emerald-500/20 rounded-lg">
                                 <Package className="w-3.5 h-3.5 text-emerald-400" />
@@ -440,7 +440,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                     </div>
 
                     {/* Concluídos */}
-                    <div className="bg-surface border border-slate-700/50 rounded-xl p-3 hover:border-green-500/30 transition-all">
+                    <div className="bg-surface border border-slate-700/50 rounded-2xl p-4 hover:border-green-500/30 transition-all">
                         <div className="flex items-center gap-2 mb-1.5">
                             <div className="p-1.5 bg-green-500/20 rounded-lg">
                                 <TrendingUp className="w-3.5 h-3.5 text-green-400" />
@@ -538,7 +538,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
             </div>
 
             {/* Events List */}
-            <div className="space-y-3">
+            <div className="space-y-5">
                 {loading ? (
                     <div className="text-center py-12 text-slate-500">
                         <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-3"></div>
@@ -563,7 +563,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                             <div
                                 key={event.id}
                                 onClick={() => setSelectedEventId(event.id)}
-                                className="bg-surface border border-slate-700/50 rounded-xl p-4 hover:border-purple-500/30 transition-all group hover:shadow-lg hover:shadow-black/20 animate-slide-in-up cursor-pointer"
+                                className="bg-surface border border-slate-700/50 rounded-2xl p-5 hover:border-purple-500/30 transition-all group hover:shadow-lg hover:shadow-black/20 animate-slide-in-up cursor-pointer"
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             >
                                 {/* Header */}
@@ -733,7 +733,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onNavigateToDistribution
                                 </div>
 
                                 {/* Info Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800/50 pt-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-800/50 pt-4 mt-1">
                                     <div>
                                         <span className="block text-[10px] text-slate-500 uppercase font-bold mb-0.5">Local</span>
                                         <span className="text-xs sm:text-sm text-white flex items-center gap-1.5 font-medium">

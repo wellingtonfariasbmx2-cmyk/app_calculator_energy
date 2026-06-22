@@ -81,23 +81,23 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
                 onKeyDown={handleKeyDown}
                 min={min}
                 max={max}
-                className="w-12 px-1.5 text-xs font-mono text-white text-center bg-slate-700 border border-blue-500 rounded outline-none"
+                className="w-16 px-2 text-sm font-mono text-white text-center bg-slate-700 border border-blue-500 rounded outline-none h-9 sm:h-8"
             />
         );
     }
 
     return (
-        <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 h-7 overflow-hidden">
+        <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 h-9 sm:h-8 overflow-hidden">
             <button
                 onClick={handleDecrement}
                 disabled={disabled || value <= min}
-                className="px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-3 sm:px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-sm sm:text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
                 -
             </button>
             <span
                 onClick={handleClick}
-                className="px-1.5 text-xs font-mono text-white min-w-[20px] text-center cursor-pointer hover:bg-slate-800 h-full flex items-center justify-center transition-colors"
+                className="px-2 sm:px-1.5 text-sm sm:text-xs font-mono text-white min-w-[28px] sm:min-w-[20px] text-center cursor-pointer hover:bg-slate-800 h-full flex items-center justify-center transition-colors"
                 title="Clique para editar"
             >
                 {value}
@@ -105,7 +105,7 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
             <button
                 onClick={handleIncrement}
                 disabled={disabled || value >= max}
-                className="px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-3 sm:px-2 h-full hover:bg-slate-800 text-slate-400 hover:text-white text-sm sm:text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
                 +
             </button>

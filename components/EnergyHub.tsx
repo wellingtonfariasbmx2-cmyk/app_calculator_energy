@@ -37,17 +37,17 @@ export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdi
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                    <Zap className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Central de Energia</h1>
-                    <p className="text-sm text-slate-400">Calculadora, distribuição e sistema elétrico</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Central de Energia</h1>
+                    <p className="text-xs sm:text-sm text-slate-400">Calculadora, distribuição e sistema elétrico</p>
                 </div>
             </div>
 
             {/* Sub-tabs */}
-            <div className="flex gap-2 bg-surface/50 p-1.5 rounded-xl border border-slate-700/50">
+            <div className="flex gap-2 bg-surface/50 p-1.5 rounded-xl border border-slate-700/50 overflow-x-auto custom-scrollbar">
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.id;
                     const Icon = tab.icon;
@@ -56,14 +56,14 @@ export const EnergyHub: React.FC<EnergyHubProps> = ({ initialProject, onClearEdi
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`
-                                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
+                                flex-1 flex items-center justify-center min-w-max gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
                                 ${isActive
                                     ? 'bg-gradient-to-r from-amber-600/20 to-orange-600/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10'
                                     : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
                             `}
                         >
-                            <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-500'}`} />
-                            <span className="hidden sm:inline">{tab.label}</span>
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-500'}`} />
+                            <span className="whitespace-nowrap">{tab.label}</span>
                         </button>
                     );
                 })}

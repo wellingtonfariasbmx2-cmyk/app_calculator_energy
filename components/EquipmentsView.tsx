@@ -178,8 +178,8 @@ export const EquipmentsView: React.FC = () => {
           </div>
 
           {/* Inventory Summary Cards */}
-          <div className="grid grid-cols-2 lg:flex lg:gap-4 gap-2 sm:gap-4 w-full lg:w-auto">
-            <div className="bg-surface border border-slate-700/50 rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 shadow-lg hover:border-slate-600 transition-colors group lg:min-w-[140px]">
+          <div className="grid grid-cols-2 lg:flex lg:gap-4 gap-3 sm:gap-4 w-full lg:w-auto">
+            <div className="bg-surface border border-slate-700/50 rounded-2xl p-4 flex items-center gap-3 shadow-lg hover:border-slate-600 transition-colors group lg:min-w-[140px]">
               <div className="p-1.5 sm:p-2 bg-slate-800 rounded-lg text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
                 <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
@@ -240,16 +240,15 @@ export const EquipmentsView: React.FC = () => {
           </button>
           <button
             onClick={() => openModal()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all w-full sm:w-auto hover:shadow-blue-500/30"
+            className="hidden sm:flex bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:shadow-blue-500/30"
           >
             <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Novo</span>
-            <span className="sm:hidden">Novo Equipamento</span>
+            <span>Novo</span>
           </button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-5">
         {filteredEquipments.length === 0 ? (
           <div className="text-center py-12 text-slate-500 bg-surface/30 rounded-xl border border-dashed border-slate-800">
             <div className="bg-slate-800/50 p-4 rounded-full mx-auto w-fit mb-3">
@@ -262,7 +261,7 @@ export const EquipmentsView: React.FC = () => {
           filteredEquipments.map((item, index) => (
             <div
               key={item.id}
-              className="bg-surface border border-slate-700/50 rounded-xl p-4 hover:border-blue-500/30 transition-all duration-300 group hover:shadow-lg hover:shadow-black/20 animate-slide-in-up"
+              className="bg-surface border border-slate-700/50 rounded-2xl p-5 hover:border-blue-500/30 transition-all duration-300 group hover:shadow-lg hover:shadow-black/20 animate-slide-in-up"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div className="flex justify-between items-start mb-4 gap-2">
@@ -371,6 +370,15 @@ export const EquipmentsView: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Floating Action Button (Mobile Only) */}
+      <button
+        onClick={() => openModal()}
+        className="sm:hidden fixed bottom-24 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-2xl shadow-blue-500/30 active:scale-95 transition-all z-50"
+        title="Novo Equipamento"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       {/* MODAL */}
       {
@@ -518,7 +526,7 @@ export const EquipmentsView: React.FC = () => {
 
                     {/* Preview de cases */}
                     {editingItem.unitsPerCase && editingItem.unitsPerCase > 0 && (
-                      <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 space-y-1.5 max-h-[120px] overflow-y-auto">
+                      <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 space-y-1.5">
                         <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">
                           Preview: {Math.ceil((editingItem.quantityOwned || 0) / editingItem.unitsPerCase)} case(s)
                         </p>

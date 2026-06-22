@@ -1,27 +1,20 @@
 import React, { useState } from 'react';
-import { Layers, Calculator, FileText, FolderKanban, LogOut, Calendar, TrendingUp, Menu, Activity, BookOpen, Monitor, Wrench, Zap, Package, Users } from 'lucide-react';
+import { Layers, LogOut, Calendar, TrendingUp, Menu, Activity, Monitor, Wrench, Package, MoreHorizontal } from 'lucide-react';
 import { EquipmentsView } from './components/EquipmentsView';
 import { EventsView } from './components/EventsView';
 import { EquipmentAvailabilityPanel } from './components/EquipmentAvailabilityPanel';
-import { DataService } from './services/supabaseClient';
-import { CalculatorView } from './components/CalculatorView';
-import { DistributionView } from './components/DistributionView';
-import { ReportsView } from './components/ReportsView';
-import { ViewState } from './types';
+import { DataService, supabase } from './services/supabaseClient';
+import { ViewState, DistributionProject } from './types';
 import { ToastProvider, useToast } from './components/Toast';
 import { LoginView } from './components/LoginView';
-import { supabase } from './services/supabaseClient';
 import { MobileDrawer } from './components/MobileDrawer';
-import { PowerSystemView } from './components/PowerSystemView';
-import { EducationView } from './components/EducationView';
 import NotificationCenter from './components/NotificationCenter';
 import { TVDashboardView } from './components/TVDashboardView';
 import { MaintenanceView } from './components/MaintenanceView';
 import { PartnersView } from './components/PartnersView';
 import { EnergyHub } from './components/EnergyHub';
 import { ConfigProvider, useConfig } from './components/ConfigContext';
-import { SettingsView } from './components/SettingsView';
-import { Settings } from 'lucide-react';
+import { ChangelogModal } from './components/ChangelogModal';
 
 export default function App() {
   return (
@@ -34,7 +27,6 @@ export default function App() {
   );
 }
 
-import { DistributionProject } from './types'; // Ensure imported logic
 
 function StatusIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -209,20 +201,6 @@ function MainLayout() {
       case 'equipments':
         return <div className="animate-fade-in"><EquipmentsView /></div>;
       case 'energy':
-      case 'calculator':
-      case 'distribution':
-        return (
-          <div className="animate-fade-in">
-            <EnergyHub
-              initialProject={editingProject}
-              onClearEdit={() => setEditingProject(null)}
-              onEditDistribution={(project) => {
-                setEditingProject(project);
-              }}
-            />
-          </div>
-        );
-      case 'power-system':
         return (
           <div className="animate-fade-in">
             <EnergyHub
@@ -285,7 +263,7 @@ function MainLayout() {
                 )}
                 <div className="leading-tight min-w-0">
                   <h1 className="text-white font-bold text-base sm:text-lg tracking-tight group-hover:text-cyan-400 transition-colors truncate">
-                    {company?.name || <p>Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></p>}
+                    {company?.name || <span>Stage<span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">Flow</span></span>}
                   </h1>
                   <div className="hidden sm:flex items-center gap-2">
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-slate-300 transition-colors truncate max-w-[100px] lg:max-w-[200px]">
@@ -340,9 +318,43 @@ function MainLayout() {
       </nav>
 
       {/* Main Content Area */}
-      <main className="pt-20 sm:pt-24 px-2 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-20 sm:pb-12 min-h-[calc(100vh-80px)] overflow-x-hidden">
+      <main className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-28 sm:pb-12 min-h-[calc(100vh-80px)] overflow-x-hidden safe-area-content-bottom">
         {renderView()}
       </main>
+
+      {/* Bottom Navigation for Mobile */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 z-50 safe-area-pb animate-slide-in-up shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-between px-1 py-1.5">
+          {baseNavItems.slice(0, 4).map((item) => {
+            const isActive = currentView === item.id;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentView(item.id as ViewState)}
+                className={`flex flex-col items-center justify-center w-[72px] gap-0.5 p-1 rounded-xl transition-all ${isActive ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300 active:scale-95'}`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 shadow-[0_0_12px_rgba(6,182,212,0.25)] ring-1 ring-cyan-500/30' : ''}`}>
+                  <Icon className={`w-5 h-5 ${isActive ? 'fill-cyan-400/20 text-cyan-400' : 'text-slate-400'}`} />
+                </div>
+                <span className="text-[10px] font-semibold truncate w-full text-center mt-0.5 tracking-tight">{item.label}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex flex-col items-center justify-center w-[72px] gap-0.5 p-1 rounded-xl text-slate-500 hover:text-slate-300 transition-all active:scale-95"
+          >
+            <div className="p-1.5 rounded-xl">
+              <MoreHorizontal className="w-5 h-5 text-slate-400" />
+            </div>
+            <span className="text-[10px] font-semibold truncate w-full text-center mt-0.5 tracking-tight">Mais</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Changelog Modal */}
+      <ChangelogModal />
     </div>
   );
 }

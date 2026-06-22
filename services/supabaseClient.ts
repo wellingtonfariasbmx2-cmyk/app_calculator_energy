@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Equipment, Calculation, DistributionProject, AnyReport } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
-const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = (import.meta as any).env.VITE_SUPABASE_KEY || '';
+const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || (import.meta as any).env.NEXT_PUBLIC_SUPABASE_URL || (import.meta as any).env.REACT_APP_SUPABASE_URL || '';
+const SUPABASE_KEY = (import.meta as any).env.VITE_SUPABASE_KEY || (import.meta as any).env.NEXT_PUBLIC_SUPABASE_KEY || (import.meta as any).env.REACT_APP_SUPABASE_KEY || '';
 
 const isConfigured = SUPABASE_URL.length > 0 && SUPABASE_KEY.length > 0;
 

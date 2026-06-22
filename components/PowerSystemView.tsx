@@ -562,7 +562,7 @@ export const PowerSystemView: React.FC = () => {
                             {/* 1. GERADOR */}
                             <div className="relative group">
                                 <div className={`
-                                    relative z-10 bg-slate-800 rounded-xl p-5 border-2 transition-all cursor-pointer hover:scale-105 active:scale-95
+                                    relative z-10 bg-slate-800 rounded-2xl p-5 sm:p-6 border-2 transition-all cursor-pointer hover:scale-105 active:scale-95
                                     ${generatorConfig.enabled ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'border-slate-700 hover:border-slate-500'}
                                 `}
                                     onClick={() => setShowGeneratorModal(true)}
@@ -596,7 +596,7 @@ export const PowerSystemView: React.FC = () => {
                             {/* 2. MAINPOWER (CENTRAL) */}
                             <div className="relative group">
                                 <div className={`
-                                    relative z-10 bg-slate-800 rounded-xl p-5 border-2 transition-all cursor-pointer hover:scale-105 active:scale-95
+                                    relative z-10 bg-slate-800 rounded-2xl p-5 sm:p-6 border-2 transition-all cursor-pointer hover:scale-105 active:scale-95
                                     ${mainpowerConfig.enabled ? (mainpowerConfig.totalPorts < allPorts.length ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.25)]' : 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.15)]') : 'border-slate-700 hover:border-slate-500'}
                                 `}
                                     onClick={() => setShowMainpowerModal(true)}
@@ -627,7 +627,7 @@ export const PowerSystemView: React.FC = () => {
 
                             {/* 3. STATUS / CARGA */}
                             <div className="relative">
-                                <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 h-full flex flex-col justify-center">
+                                <div className="bg-slate-800 rounded-2xl p-5 sm:p-6 border border-slate-700 h-full flex flex-col justify-center">
                                     <div className="flex justify-between items-center mb-4">
                                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Carga Total</span>
                                         <div className={`w-2 h-2 rounded-full ${balanceStatus.icon} animate-pulse`}></div>

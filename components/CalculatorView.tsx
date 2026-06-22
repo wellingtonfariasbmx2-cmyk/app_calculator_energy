@@ -304,7 +304,7 @@ export const CalculatorView: React.FC = () => {
       </div>
 
       {/* Settings Panel */}
-      <div className="bg-surface border border-slate-700/50 rounded-xl p-6 mb-8 shadow-xl bg-gradient-to-br from-surface to-slate-900/50">
+      <div className="bg-surface border border-slate-700/50 rounded-2xl p-5 sm:p-6 mb-8 shadow-xl bg-gradient-to-br from-surface to-slate-900/50">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-yellow-500" /> Configuração da Rede Elétrica
         </h3>
@@ -425,7 +425,7 @@ export const CalculatorView: React.FC = () => {
             </button>
           </div>
 
-          <div className="bg-surface border border-slate-700/50 rounded-xl min-h-[500px] p-1 flex flex-col relative overflow-hidden shadow-inner bg-slate-900/20">
+          <div className="bg-surface border border-slate-700/50 rounded-2xl min-h-[500px] p-2 sm:p-1 flex flex-col relative overflow-hidden shadow-inner bg-slate-900/20">
 
 
             {selectedItems.length === 0 ? (
@@ -489,7 +489,7 @@ export const CalculatorView: React.FC = () => {
             Análise Técnica
           </h3>
 
-          <div className="bg-surface border border-slate-700/50 rounded-xl p-5 space-y-6 shadow-xl sticky top-24">
+          <div className="bg-surface border border-slate-700/50 rounded-2xl p-5 space-y-6 shadow-xl sticky top-24">
 
             {/* --- STATUS CARD (NEW) --- */}
             {circuitBreaker && (
